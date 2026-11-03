@@ -1,0 +1,19 @@
+﻿# Định dạng xuống dòng thống nhất cho cả nhóm (mọi máy Windows), không phụ thuộc cấu hình core.autocrlf của từng người.
+# Mã nguồn, script, tài liệu: CRLF trên máy (theo quy ước dự án). Riêng PROJECT_CONTEXT.md: LF.
+* text=auto eol=crlf
+PROJECT_CONTEXT.md text eol=lf
+
+# File nhị phân: không bao giờ đổi xuống dòng, không so sánh nội dung
+*.xlsx binary
+*.xls binary
+*.docx binary
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

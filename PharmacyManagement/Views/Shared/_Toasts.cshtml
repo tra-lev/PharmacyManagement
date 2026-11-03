@@ -1,0 +1,21 @@
+﻿@{
+    // Thông báo một lần sau khi chuyển trang (TempData). Thành công tự ẩn; lỗi và cảnh báo giữ đến khi người dùng đóng.
+    var toasts = new List<(string Css, string Icon, string Text, bool Auto, string Role)>();
+    if (TempData["Success"] is string ok) toasts.Add(("", "check-circle", ok, true, "status"));
+    if (TempData["Info"] is string info) toasts.Add(("info", "info-circle", info, false, "status"));
+    if (TempData["Warning"] is string warn) toasts.Add(("warn", "exclamation-triangle", warn, false, "alert"));
+    if (TempData["Error"] is string err) toasts.Add(("bad", "x-circle", err, false, "alert"));
+}
+@if (toasts.Count > 0)
+{
+    <div class="pm-toasts">
+        @foreach (var t in toasts)
+        {
+            <div class="pm-toast @t.Css" role="@t.Role" @(t.Auto ? "data-pm-autohide" : null)>
+                <i class="bi bi-@t.Icon" aria-hidden="true"></i>
+                <div>@t.Text</div>
+                <button type="button" data-pm-dismiss aria-label="Đóng thông báo">&times;</button>
+            </div>
+        }
+    </div>
+}

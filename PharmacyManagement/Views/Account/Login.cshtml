@@ -1,0 +1,39 @@
+﻿@model LoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Đăng nhập";
+}
+<div>
+    <h1>Đăng nhập</h1>
+    <p class="text-muted-pm mb-0">Dùng email hoặc tên tài khoản (phần trước @@ của email) và mật khẩu.</p>
+</div>
+
+<form asp-action="Login" method="post" class="d-flex flex-column gap-3">
+    <div asp-validation-summary="ModelOnly" class="pm-alert bad" role="alert"></div>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <div>
+        <label asp-for="UserNameOrEmail" class="form-label"></label>
+        <input asp-for="UserNameOrEmail" class="form-control" autocomplete="username" autocapitalize="none" spellcheck="false" autofocus />
+        <span asp-validation-for="UserNameOrEmail" class="field-validation-error"></span>
+    </div>
+    <div>
+        <div class="d-flex justify-content-between align-items-baseline">
+            <label asp-for="Password" class="form-label"></label>
+            <a asp-action="ForgotPassword" class="small">Quên mật khẩu?</a>
+        </div>
+        <div class="pm-pw-wrap">
+            <input asp-for="Password" class="form-control" autocomplete="current-password" />
+            <button type="button" class="pm-pw-toggle" data-pm-toggle-password="Password" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button>
+        </div>
+        <span asp-validation-for="Password" class="field-validation-error"></span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg w-100">Đăng nhập</button>
+</form>
+
+<div class="pm-inner small">
+    <strong>Được chủ nhà thuốc mời?</strong>
+    Mở email mời, rồi <a asp-action="Activate">kích hoạt tài khoản</a> bằng mã 6 số.
+    Hệ thống không có chức năng tự đăng ký.
+</div>
+
+@section Scripts { <partial name="_FormValidation" /> }

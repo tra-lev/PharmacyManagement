@@ -1,0 +1,213 @@
+﻿@model MedicineDetailsViewModel
+@{
+    ViewData["Title"] = Model.Name;
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Thuốc</a> / @Model.Code</p>
+        <h1 class="pm-title">@Model.Name</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge mute">@Model.Code</span>
+            @if (Model.IsPrescription)
+            {
+                <span class="pm-badge warn">Kê đơn</span>
+            }
+            else
+            {
+                <span class="pm-badge calm">Không kê đơn</span>
+            }
+            @if (Model.IsControlledDrug)
+            {
+                <span class="pm-badge bad">Kiểm soát đặc biệt</span>
+            }
+            @if (Model.IsActive)
+            {
+                <span class="pm-badge good">Đang kinh doanh</span>
+            }
+            else
+            {
+                <span class="pm-badge mute">Đã ngừng kinh doanh</span>
+            }
+        </div>
+    </div>
+    @if (Model.CanEdit)
+    {
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.MedicineId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa thông tin</a>
+            @if (Model.IsActive)
+            {
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deactivate-modal">Ngừng kinh doanh</button>
+            }
+            else
+            {
+                <form asp-action="Activate" asp-route-id="@Model.MedicineId" method="post">
+                    <button type="submit" class="btn btn-outline-secondary">Mở lại kinh doanh</button>
+                </form>
+            }
+        </div>
+    }
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7 d-flex flex-column gap-4">
+        <section class="pm-card" aria-labelledby="d-general">
+            <h2 id="d-general" class="pm-h2 mb-3">Thông tin chung</h2>
+            <dl class="pm-dl">
+                <dt>Nhóm thuốc</dt><dd>@Model.CategoryName</dd>
+                <dt>Hãng sản xuất</dt><dd>@Or(Model.ManufacturerName)</dd>
+                <dt>Dạng bào chế</dt><dd>@Or(Model.DosageForm)</dd>
+                <dt>Hàm lượng</dt><dd>@Or(Model.Strength)</dd>
+                <dt>Số đăng ký</dt><dd>@Or(Model.RegistrationNumber)</dd>
+                <dt>Xuất xứ</dt><dd>@Or(Model.CountryOfOrigin)</dd>
+                <dt>Mã vạch</dt><dd class="num">@Or(Model.Barcode)</dd>
+                <dt>Liên thông Dược QG</dt><dd>@(Model.IsInterconnected ? "Có" : "Không")</dd>
+                <dt>Ngày thêm</dt><dd class="num">@Format.When(Model.CreatedAt)</dd>
+            </dl>
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-ingredients">
+            <h2 id="d-ingredients" class="pm-h2 mb-3">Hoạt chất</h2>
+            @if (Model.Ingredients.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Chưa khai báo hoạt chất — hệ thống không cảnh báo được dị ứng, tương tác cho thuốc này.</p>
+            }
+            else
+            {
+                <ul class="pm-plain-list">
+                    @foreach (var (name, strength) in Model.Ingredients)
+                    {
+                        <li><span class="fw-semibold">@name</span>@(strength is null ? "" : " · " + strength)</li>
+                    }
+                </ul>
+            }
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-safety">
+            <h2 id="d-safety" class="pm-h2 mb-3">An toàn khi bán</h2>
+            <dl class="pm-dl">
+                <dt>Từ khóa chống chỉ định</dt>
+                <dd>
+                    @if (Model.ContraindicationKeywords.Count == 0)
+                    {
+                        <span class="text-muted-pm">—</span>
+                    }
+                    else
+                    {
+                        <span class="d-flex flex-wrap gap-1">
+                            @foreach (var k in Model.ContraindicationKeywords)
+                            {
+                                <span class="pm-badge mute">@k</span>
+                            }
+                        </span>
+                    }
+                </dd>
+                <dt>Chống chỉ định</dt><dd class="pm-pre">@Or(Model.Contraindications)</dd>
+                <dt>Tương tác</dt><dd class="pm-pre">@Or(Model.Interactions)</dd>
+                <dt>Hướng dẫn sử dụng</dt><dd class="pm-pre">@Or(Model.UsageInstructions)</dd>
+                <dt>Liều tối đa</dt>
+                <dd class="num">
+                    @(Model.MaxSingleDose is null ? "—" : Format.Number(Model.MaxSingleDose.Value) + " " + Model.BaseUnitName + "/lần")
+                    @(Model.MaxDailyDose is null ? "" : " · " + Format.Number(Model.MaxDailyDose.Value) + " " + Model.BaseUnitName + "/ngày")
+                </dd>
+                <dt>Tuổi tối thiểu</dt><dd>@(Model.MinPatientAgeYears is null ? "—" : Model.MinPatientAgeYears + " tuổi")</dd>
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <section class="pm-card" aria-labelledby="d-price">
+            <h2 id="d-price" class="pm-h2 mb-3">Giá và đơn vị</h2>
+            <div class="pm-stat" data-tone="calm">
+                <span class="l">Giá bán / @Model.BaseUnitName</span>
+                <span class="v">@Format.Money(Model.DefaultSellingPrice)</span>
+                <span class="small text-muted-pm">Giá nhập tham khảo: @Format.Money(Model.DefaultPurchasePrice)</span>
+            </div>
+            @if (Model.Conversions.Count > 0)
+            {
+                <table class="pm-table mt-3">
+                    <thead><tr><th scope="col">Đơn vị</th><th scope="col" class="text-end">Bằng</th><th scope="col" class="text-end">Giá bán</th></tr></thead>
+                    <tbody>
+                        @foreach (var c in Model.Conversions)
+                        {
+                            <tr>
+                                <td>
+                                    @c.UnitName
+                                    @if (c.IsDefaultSaleUnit)
+                                    {
+                                        <span class="pm-badge good ms-1">Mặc định</span>
+                                    }
+                                </td>
+                                <td class="text-end num">@Format.Number(c.ConversionToBase) @Model.BaseUnitName</td>
+                                <td class="text-end num">@Format.Money(c.Price)@if (c.PriceIsAuto) {<div class="small text-muted-pm">tự tính</div>}</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            <p class="form-text mb-0 mt-3"><i class="bi bi-lock" aria-hidden="true"></i> Đổi giá bán: chủ nhà thuốc, ở Chính sách giá (1.5.4).</p>
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-stock">
+            <h2 id="d-stock" class="pm-h2 mb-2">Tồn kho</h2>
+            <p class="mb-0">
+                <span class="fs-4 fw-semibold num">@Format.Number(Model.QuantityOnHand)</span> @Model.BaseUnitName
+                <span class="text-muted-pm">· @Model.BatchCount lô còn hàng</span>
+            </p>
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-history">
+            <h2 id="d-history" class="pm-h2 mb-3">Lịch sử giá</h2>
+            @if (Model.PriceHistory.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Chưa có lịch sử giá (thuốc nhập từ dữ liệu mẫu).</p>
+            }
+            else
+            {
+                <ul class="pm-timeline">
+                    @foreach (var h in Model.PriceHistory)
+                    {
+                        <li>
+                            <div class="small text-muted-pm num">@Format.When(h.EffectiveFrom) · @h.UnitName</div>
+                            <div class="fw-semibold num">
+                                @if (h.OldSellingPrice is not null)
+                                {
+                                    <span class="text-muted-pm text-decoration-line-through fw-normal">@Format.Money(h.OldSellingPrice.Value)</span>
+                                    <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>
+                                }
+                                @Format.Money(h.SellingPrice)
+                            </div>
+                            <div class="small text-muted-pm">@(h.Reason ?? "")@(h.ChangedBy is null ? "" : " · " + h.ChangedBy)</div>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </div>
+</div>
+
+@if (Model.CanEdit && Model.IsActive)
+{
+    <div class="modal fade" id="deactivate-modal" tabindex="-1" aria-labelledby="deactivate-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Deactivate" asp-route-id="@Model.MedicineId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="deactivate-title">Ngừng kinh doanh thuốc này?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2"><strong>@Model.Name</strong> sẽ không còn hiện khi bán và đặt hàng. Thông tin, lịch sử bán và tồn kho vẫn giữ nguyên; mở lại được bất cứ lúc nào.</p>
+                    @if (Model.QuantityOnHand > 0)
+                    {
+                        <div class="pm-alert warn small">Thuốc còn tồn @Format.Number(Model.QuantityOnHand) @Model.BaseUnitName — xử lý bằng trả nhà cung cấp hoặc hủy thuốc.</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Ngừng kinh doanh</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

@@ -1,0 +1,115 @@
+﻿@model SupplierDetailsViewModel
+@{
+    ViewData["Title"] = Model.Name;
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Nhà cung cấp</a> / @Model.Code</p>
+        <h1 class="pm-title">@Model.Name</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge mute">@Model.Code</span>
+            @if (Model.IsActive)
+            {
+                <span class="pm-badge good">Đang giao dịch</span>
+            }
+            else
+            {
+                <span class="pm-badge mute">Đã ngừng giao dịch</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.SupplierId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa thông tin</a>
+        @if (Model.IsActive)
+        {
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deactivate-modal">Ngừng giao dịch</button>
+        }
+        else
+        {
+            <form asp-action="Activate" asp-route-id="@Model.SupplierId" method="post">
+                <button type="submit" class="btn btn-outline-secondary">Mở lại giao dịch</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <section class="pm-card" aria-labelledby="d-general">
+            <h2 id="d-general" class="pm-h2 mb-3">Thông tin liên hệ</h2>
+            <dl class="pm-dl">
+                <dt>Mã số thuế</dt><dd class="num">@Or(Model.TaxCode)</dd>
+                <dt>Người liên hệ</dt><dd>@Or(Model.ContactPerson)</dd>
+                <dt>Số điện thoại</dt>
+                <dd class="num">
+                    @if (Model.Phone is null)
+                    {
+                        <span>—</span>
+                    }
+                    else
+                    {
+                        <a href="tel:@Model.Phone">@ContactRules.DisplayPhone(Model.Phone)</a>
+                    }
+                </dd>
+                <dt>Email</dt>
+                <dd>
+                    @if (Model.Email is null)
+                    {
+                        <span>—</span>
+                    }
+                    else
+                    {
+                        <a href="mailto:@Model.Email">@Model.Email</a>
+                    }
+                </dd>
+                <dt>Địa chỉ</dt><dd>@Or(Model.Address)</dd>
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-lg-5">
+        <section class="pm-card" aria-labelledby="d-trade">
+            <h2 id="d-trade" class="pm-h2 mb-3">Giao dịch</h2>
+            <dl class="pm-dl">
+                <dt>Đơn đặt hàng</dt>
+                <dd class="num">
+                    @Model.PurchaseOrderCount.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"))
+                    @if (Model.OpenPurchaseOrderCount > 0)
+                    {
+                        <span class="pm-badge wait ms-1">@Model.OpenPurchaseOrderCount đang mở</span>
+                    }
+                </dd>
+                <dt>Phiếu nhập kho</dt><dd class="num">@Model.PostedReceiptCount.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"))</dd>
+                <dt>Nhập gần nhất</dt><dd class="num">@(Model.LastReceiptDate is null ? "—" : Format.When(Model.LastReceiptDate.Value))</dd>
+            </dl>
+            <p class="form-text mb-0 mt-3">Công nợ và thanh toán nhà cung cấp xem ở phân hệ Kho (2.2.5).</p>
+        </section>
+    </div>
+</div>
+
+@if (Model.IsActive)
+{
+    <div class="modal fade" id="deactivate-modal" tabindex="-1" aria-labelledby="deactivate-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Deactivate" asp-route-id="@Model.SupplierId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="deactivate-title">Ngừng giao dịch với nhà cung cấp này?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-2"><strong>@Model.Name</strong> sẽ không còn hiện khi lập đơn đặt hàng và phiếu nhập mới. Đơn, phiếu nhập, công nợ đã có vẫn giữ nguyên; mở lại được bất cứ lúc nào.</p>
+                    @if (Model.OpenPurchaseOrderCount > 0)
+                    {
+                        <div class="pm-alert warn small">Còn @Model.OpenPurchaseOrderCount đơn đặt hàng đang mở (nháp, chờ giao hoặc giao thiếu) — xử lý ở mục Đặt hàng.</div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Ngừng giao dịch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

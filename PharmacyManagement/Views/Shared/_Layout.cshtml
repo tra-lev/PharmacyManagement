@@ -1,0 +1,41 @@
+﻿@{
+    var nav = ViewData["Nav"] as string;
+    var title = ViewData["Title"] as string;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(string.IsNullOrEmpty(title) ? PharmacyInfo.Value.Name : title + " · " + PharmacyInfo.Value.Name)</title>
+    <partial name="_Styles" />
+</head>
+<body class="pm-app">
+    <a class="pm-skip visually-hidden-focusable" href="#main">Bỏ qua menu, tới nội dung</a>
+
+    @if (User.Identity?.IsAuthenticated != true)
+    {
+        @* Trang ẩn danh dùng nhầm layout chính (ví dụ trang lỗi): hiện nội dung, không dựng menu. *@
+        <main id="main" class="pm-content mx-auto" tabindex="-1">@RenderBody()</main>
+    }
+    else
+    {
+        <div class="pm-shell">
+            <aside class="pm-sidebar" id="pm-sidebar" aria-label="Menu chính">
+                @await Component.InvokeAsync("Sidebar", new { activeKey = nav })
+            </aside>
+            <div class="pm-main">
+                <partial name="_Topbar" />
+                <main id="main" class="pm-content" tabindex="-1">
+                    <partial name="_UnverifiedBanner" />
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+    }
+
+    <partial name="_Toasts" />
+    <partial name="_Scripts" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

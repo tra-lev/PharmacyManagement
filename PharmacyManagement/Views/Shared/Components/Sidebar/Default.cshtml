@@ -1,0 +1,58 @@
+﻿@model SidebarViewModel
+@functions {
+    private static string ItemCss(SidebarItemViewModel i) => i.Active ? "pm-nav-item active" : "pm-nav-item";
+}
+<a class="pm-brand" href="/">
+    <span class="pm-avatar" aria-hidden="true"><i class="bi bi-capsule"></i></span>
+    <span>
+        <span class="pm-brand-name d-block">@PharmacyInfo.Value.Name</span>
+        <span class="pm-brand-sub d-block">Hệ thống quản lý</span>
+    </span>
+</a>
+
+<nav class="pm-nav" aria-label="Chức năng">
+    <a class="@ItemCss(Model.Home)" href="@Model.Home.Item.Url" aria-current="@(Model.Home.Active ? "page" : null)">
+        <span class="pm-chip" aria-hidden="true"><i class="bi bi-@Model.Home.Item.Icon"></i></span>
+        @Model.Home.Item.Title
+    </a>
+
+    @foreach (var group in Model.Groups)
+    {
+        var panelId = "pm-nav-" + group.Key;
+        <button type="button" class="pm-nav-group" data-pm-group="@group.Key" aria-controls="@panelId" aria-expanded="@(group.Open ? "true" : "false")">
+            @group.Title <i class="bi bi-chevron-down" aria-hidden="true"></i>
+        </button>
+        <div id="@panelId" class="pm-nav-panel" hidden="@(!group.Open)">
+            @foreach (var item in group.Items)
+            {
+                <a class="@ItemCss(item)" href="@item.Item.Url" aria-current="@(item.Active ? "page" : null)">
+                    <span class="pm-chip" aria-hidden="true"><i class="bi bi-@item.Item.Icon"></i></span>
+                    <span>@item.Item.Title</span>
+                    @if (item.NeedsVerifiedEmail)
+                    {
+                        <i class="bi bi-lock pm-lock" title="Cần xác minh email" aria-label="Cần xác minh email"></i>
+                    }
+                    else if (!item.Item.Implemented)
+                    {
+                        <span class="pm-soon">Sắp có</span>
+                    }
+                </a>
+            }
+        </div>
+    }
+</nav>
+
+@{ var onManage = Context.Request.Path.StartsWithSegments("/Account/Manage"); }
+<div class="pm-nav-footer">
+    <a class="@(onManage ? "pm-nav-item active" : "pm-nav-item")" href="/Account/Manage" aria-current="@(onManage ? "page" : null)">
+        <span class="pm-chip" aria-hidden="true"><i class="bi bi-person-circle"></i></span>
+        Tài khoản của tôi
+    </a>
+    <form method="post" action="/Account/Logout">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="pm-nav-item">
+            <span class="pm-chip" aria-hidden="true"><i class="bi bi-box-arrow-left"></i></span>
+            Đăng xuất
+        </button>
+    </form>
+</div>

@@ -1,0 +1,21 @@
+﻿@{
+    // Góc trên: tên tài khoản (phần trước @) + ảnh đại diện chữ viết tắt; rê chuột thấy email đầy đủ (DEC-21).
+    // Họ tên trong hồ sơ nhân viên không dùng ở đây — họ tên dành cho hóa đơn, báo cáo, chứng từ.
+    var userName = AccountHelpers.DisplayUserName(User);
+    var email = AccountHelpers.EmailOf(User) ?? string.Empty;
+    var role = User.FindFirstValue(ClaimTypes.Role);
+}
+<header class="pm-topbar">
+    <button type="button" class="pm-icon-btn pm-menu-btn" data-pm-menu aria-controls="pm-sidebar" aria-expanded="false" aria-label="Mở menu">
+        <i class="bi bi-list fs-5" aria-hidden="true"></i>
+    </button>
+    <div class="pm-topbar-title flex-grow-1">@DateTime.Now.ToString("dddd, dd/MM/yyyy")</div>
+    <a class="pm-user text-decoration-none" asp-area="" asp-controller="Account" asp-action="Manage"
+       title="@email" aria-label="Tài khoản của tôi: @userName, @email">
+        <span class="pm-avatar" aria-hidden="true">@AccountHelpers.Initials(userName)</span>
+        <span class="pm-user-text">
+            <span class="pm-user-name d-block">@userName</span>
+            <span class="pm-user-role d-block">@RoleNames.DisplayName(role)</span>
+        </span>
+    </a>
+</header>

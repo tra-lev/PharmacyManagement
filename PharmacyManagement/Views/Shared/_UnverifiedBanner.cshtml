@@ -1,0 +1,15 @@
+﻿@{
+    // Nhắc xác minh email: chức năng quản trị quan trọng bị khóa ở server cho đến khi xác minh (DEC-18).
+    var show = User.Identity?.IsAuthenticated == true && !User.HasClaim(AppClaimTypes.EmailVerified, "true");
+}
+@if (show)
+{
+    <div class="pm-alert warn d-flex flex-wrap align-items-center gap-3 mb-4" role="status">
+        <i class="bi bi-envelope-exclamation fs-5" aria-hidden="true"></i>
+        <div class="flex-grow-1">
+            <strong>Email chưa được xác minh.</strong>
+            Các chức năng quản trị (tài khoản, phân quyền, thiết lập, nhật ký) sẽ mở sau khi bạn nhập mã gửi tới email.
+        </div>
+        <a class="btn btn-sm btn-primary" asp-controller="Account" asp-action="VerifyEmail" asp-area="">Xác minh ngay</a>
+    </div>
+}

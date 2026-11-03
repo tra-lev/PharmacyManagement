@@ -1,0 +1,191 @@
+﻿@model CustomerDetailsViewModel
+@{
+    ViewData["Title"] = Model.FullName;
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Khách hàng</a> / @Model.Code</p>
+        <h1 class="pm-title">@Model.FullName</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge mute">@Model.Code</span>
+            @if (Model.Allergies.Count > 0)
+            {
+                <span class="pm-badge bad">Dị ứng @Model.Allergies.Count hoạt chất</span>
+            }
+            @if (Model.ChronicConditions.Count > 0)
+            {
+                <span class="pm-badge warn">Bệnh nền</span>
+            }
+            @if (Model.IsActive)
+            {
+                <span class="pm-badge good">Đang hoạt động</span>
+            }
+            else
+            {
+                <span class="pm-badge mute">Đã ngừng</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" asp-action="Edit" asp-route-id="@Model.CustomerId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa hồ sơ</a>
+        @if (Model.IsActive)
+        {
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#deactivate-modal">Ngừng hồ sơ</button>
+        }
+        else
+        {
+            <form asp-action="Activate" asp-route-id="@Model.CustomerId" method="post">
+                <button type="submit" class="btn btn-outline-secondary">Mở lại hồ sơ</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7 d-flex flex-column gap-4">
+        <section class="pm-card" aria-labelledby="d-general">
+            <h2 id="d-general" class="pm-h2 mb-3">Thông tin khách hàng</h2>
+            <dl class="pm-dl">
+                <dt>Số điện thoại</dt>
+                <dd class="num">
+                    @if (Model.Phone is null)
+                    {
+                        <span>—</span>
+                    }
+                    else
+                    {
+                        <a href="tel:@Model.Phone">@ContactRules.DisplayPhone(Model.Phone)</a>
+                    }
+                </dd>
+                <dt>Ngày sinh</dt>
+                <dd class="num">@(Model.DateOfBirth is null ? "—" : Model.DateOfBirth.Value.ToString("dd/MM/yyyy", vi) + " · " + Model.Age + " tuổi")</dd>
+                <dt>Giới tính</dt><dd>@Or(GenderText.Of(Model.Gender))</dd>
+                <dt>Email</dt><dd>@Or(Model.Email)</dd>
+                <dt>Địa chỉ</dt><dd>@Or(Model.Address)</dd>
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+                <dt>Ngày tạo hồ sơ</dt><dd class="num">@Format.When(Model.CreatedAt)</dd>
+            </dl>
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-purchases">
+            <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+                <h2 id="d-purchases" class="pm-h2">Lịch sử mua</h2>
+                @if (Model.PaidInvoiceCount > CustomerDetailsViewModel.PurchaseLimit)
+                {
+                    <span class="small text-muted-pm">@CustomerDetailsViewModel.PurchaseLimit hóa đơn gần nhất</span>
+                }
+            </div>
+            @if (Model.RecentPurchases.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Khách chưa có hóa đơn đã thanh toán.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="pm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Hóa đơn</th>
+                                <th scope="col">Người bán</th>
+                                <th scope="col" class="text-end">Tổng tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model.RecentPurchases)
+                            {
+                                <tr>
+                                    <td>
+                                        <span class="fw-semibold num">@p.InvoiceCode</span>
+                                        @if (p.ByPrescription)
+                                        {
+                                            <span class="pm-badge warn ms-1">Theo đơn</span>
+                                        }
+                                        <div class="small text-muted-pm num">@Format.When(p.InvoiceDate)</div>
+                                    </td>
+                                    <td class="small">@p.SellerName</td>
+                                    <td class="text-end num text-nowrap">@Format.Money(p.TotalAmount)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <section class="pm-card" aria-labelledby="d-health">
+            <h2 id="d-health" class="pm-h2 mb-3">Lưu ý sức khỏe</h2>
+            <h3 class="pm-h3 mb-2">Dị ứng hoạt chất</h3>
+            @if (Model.Allergies.Count == 0)
+            {
+                <p class="text-muted-pm">Chưa ghi nhận dị ứng.</p>
+            }
+            else
+            {
+                <ul class="pm-plain-list mb-3">
+                    @foreach (var a in Model.Allergies)
+                    {
+                        <li>
+                            <span class="fw-semibold">@a.IngredientName</span>
+                            @if (a.Reaction is not null)
+                            {
+                                <span> · @a.Reaction</span>
+                            }
+                            <div class="small text-muted-pm num">Ghi nhận @Format.When(a.RecordedAt)</div>
+                        </li>
+                    }
+                </ul>
+            }
+            <h3 class="pm-h3 mb-2">Bệnh nền</h3>
+            @if (Model.ChronicConditions.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Chưa ghi nhận bệnh nền.</p>
+            }
+            else
+            {
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var c in Model.ChronicConditions)
+                    {
+                        <span class="pm-badge warn">@c</span>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-summary">
+            <h2 id="d-summary" class="pm-h2 mb-3">Tổng hợp mua hàng</h2>
+            <dl class="pm-dl">
+                <dt>Hóa đơn đã thanh toán</dt><dd class="num">@Model.PaidInvoiceCount.ToString("N0", vi)</dd>
+                <dt>Tổng tiền theo hóa đơn</dt><dd class="num">@Format.Money(Model.TotalSpent)</dd>
+                <dt>Mua gần nhất</dt><dd class="num">@(Model.LastPurchaseAt is null ? "—" : Format.When(Model.LastPurchaseAt.Value))</dd>
+                <dt>Đơn thuốc đã lưu</dt><dd class="num">@Model.PrescriptionCount.ToString("N0", vi)</dd>
+            </dl>
+            <p class="form-text mb-0 mt-3">Tổng tiền tính theo hóa đơn, chưa trừ tiền hoàn khi đổi trả.</p>
+        </section>
+    </div>
+</div>
+
+@if (Model.IsActive)
+{
+    <div class="modal fade" id="deactivate-modal" tabindex="-1" aria-labelledby="deactivate-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Deactivate" asp-route-id="@Model.CustomerId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="deactivate-title">Ngừng hồ sơ khách hàng này?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0"><strong>@Model.FullName</strong> sẽ không còn hiện khi chọn khách ở quầy bán. Hồ sơ, dị ứng, hóa đơn và đơn thuốc đã có vẫn giữ nguyên; mở lại được bất cứ lúc nào.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-danger">Ngừng hồ sơ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

@@ -1,0 +1,18 @@
+﻿@model MedicineFormViewModel
+@{
+    ViewData["Title"] = "Thêm thuốc";
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Thuốc</a> / Thêm thuốc</p>
+        <h1 class="pm-title">Thêm thuốc</h1>
+        <p class="pm-subtitle">Khai báo thông tin, hoạt chất, đơn vị quy đổi và giá bán ban đầu.</p>
+    </div>
+</div>
+
+<partial name="_MedicineForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+}

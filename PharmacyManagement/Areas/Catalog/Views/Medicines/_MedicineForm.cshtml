@@ -1,0 +1,339 @@
+﻿@model MedicineFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+    var baseUnitName = Model.UnitOptions.FirstOrDefault(u => u.Id == Model.BaseUnitId)?.Name ?? "đơn vị cơ sở";
+    var dosageForms = new[] { "Viên nén", "Viên nén bao phim", "Viên nang", "Viên sủi", "Thuốc bột", "Thuốc cốm", "Siro", "Hỗn dịch", "Dung dịch uống", "Dung dịch tiêm", "Thuốc nhỏ mắt", "Thuốc nhỏ mũi", "Thuốc xịt", "Thuốc mỡ", "Kem bôi", "Gel bôi", "Miếng dán", "Viên đặt" };
+}
+
+<form asp-action="@action" asp-route-id="@Model.MedicineId" method="post" class="d-flex flex-column gap-4" data-pm-medicine-form novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+
+    @* ---------------- 1. Thông tin chung (1.1.1 / 1.1.2, nhóm thuốc 1.1.3) ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-general">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+            <h2 id="sec-general" class="pm-h2">Thông tin chung</h2>
+            <span class="small text-muted-pm">Mã thuốc: <strong class="text-reset">@Model.MedicineCode</strong>@(Model.IsEdit ? "" : " (dự kiến, tự sinh khi lưu)")</span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="MedicineName" class="form-label"><span>Tên thuốc</span> <span class="req">*</span></label>
+                <input asp-for="MedicineName" class="form-control" autocomplete="off" />
+                <span asp-validation-for="MedicineName" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Barcode" class="form-label">Mã vạch <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Barcode" class="form-control" inputmode="numeric" autocomplete="off" />
+                <span asp-validation-for="Barcode" class="field-validation-error"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label for="CategoryId" class="form-label">Nhóm thuốc <span class="req">*</span></label>
+                @if (Model.CanEditCategory)
+                {
+                    <select asp-for="CategoryId" class="form-select">
+                        <option value="">— Chọn nhóm —</option>
+                        @foreach (var c in Model.CategoryOptions)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                }
+                else
+                {
+                    <input type="hidden" name="CategoryId" value="@Model.CategoryId" />
+                    <input id="CategoryId" class="form-control" value="@(Model.CategoryOptions.FirstOrDefault(c => c.Id == Model.CategoryId)?.Name)" disabled />
+                    <div class="form-text">Đổi nhóm cần quyền Phân loại thuốc (1.1.3).</div>
+                }
+                <span asp-validation-for="CategoryId" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ManufacturerId" class="form-label">Hãng sản xuất <span class="opt">(không bắt buộc)</span></label>
+                <select asp-for="ManufacturerId" class="form-select">
+                    <option value="">— Không rõ —</option>
+                    @foreach (var m in Model.ManufacturerOptions)
+                    {
+                        <option value="@m.Id">@m.Name</option>
+                    }
+                </select>
+                <details class="mt-2" open="@(!string.IsNullOrWhiteSpace(Model.NewManufacturerName))">
+                    <summary class="small">Hãng chưa có trong danh sách?</summary>
+                    <input asp-for="NewManufacturerName" class="form-control mt-2" placeholder="Tên hãng mới" autocomplete="off" />
+                    <div class="form-text">Gõ tên hãng mới thì ô chọn ở trên được bỏ qua. Trùng tên hãng đã có thì dùng lại hãng đó.</div>
+                </details>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="DosageForm" class="form-label"></label>
+                <input asp-for="DosageForm" class="form-control" list="dosage-forms" autocomplete="off" placeholder="Viên nén, Siro…" />
+                <datalist id="dosage-forms">
+                    @foreach (var d in dosageForms)
+                    {
+                        <option value="@d"></option>
+                    }
+                </datalist>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Strength" class="form-label"></label>
+                <input asp-for="Strength" class="form-control" placeholder="500mg" autocomplete="off" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="RegistrationNumber" class="form-label"></label>
+                <input asp-for="RegistrationNumber" class="form-control" placeholder="VD-12345-20" autocomplete="off" />
+            </div>
+            <div class="col-md-4">
+                <label asp-for="CountryOfOrigin" class="form-label"></label>
+                <input asp-for="CountryOfOrigin" class="form-control" placeholder="Việt Nam" autocomplete="off" />
+            </div>
+
+            <div class="col-12 d-flex flex-wrap gap-4 pt-1">
+                <div class="form-check form-switch">
+                    <input asp-for="IsPrescription" class="form-check-input" role="switch" />
+                    <label asp-for="IsPrescription" class="form-check-label">Thuốc kê đơn <span class="text-muted-pm">— chỉ bán ở màn Bán theo đơn</span></label>
+                </div>
+                <div class="form-check form-switch">
+                    <input asp-for="IsControlledDrug" class="form-check-input" role="switch" />
+                    <label asp-for="IsControlledDrug" class="form-check-label">Thuốc kiểm soát đặc biệt</label>
+                </div>
+                <div class="form-check form-switch">
+                    <input asp-for="IsInterconnected" class="form-check-input" role="switch" />
+                    <label asp-for="IsInterconnected" class="form-check-label">Liên thông Dược quốc gia</label>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    @* ---------------- 2. Hoạt chất ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-ingredients">
+        <h2 id="sec-ingredients" class="pm-h2 mb-1">Hoạt chất</h2>
+        <p class="small text-muted-pm mb-3">Chọn từ danh sách gợi ý hoặc gõ tên hoạt chất mới — hệ thống tự thêm vào danh mục hoạt chất. Dùng để cảnh báo dị ứng, tương tác khi bán.</p>
+        <datalist id="ingredient-names">
+            @foreach (var n in Model.IngredientNames)
+            {
+                <option value="@n"></option>
+            }
+        </datalist>
+        <div class="pm-lines" data-pm-repeater="ingredients" data-pm-next="@Model.Ingredients.Count">
+            <div class="pm-line pm-line-head" aria-hidden="true">
+                <span>Tên hoạt chất</span><span>Hàm lượng</span><span></span>
+            </div>
+            @for (var i = 0; i < Model.Ingredients.Count; i++)
+            {
+                <div class="pm-line" data-pm-row>
+                    <input type="hidden" name="Ingredients.Index" value="@i" />
+                    <input type="text" name="Ingredients[@i].Name" value="@Model.Ingredients[i].Name" class="form-control" list="ingredient-names" maxlength="200" aria-label="Tên hoạt chất" autocomplete="off" />
+                    <input type="text" name="Ingredients[@i].Strength" value="@Model.Ingredients[i].Strength" class="form-control" maxlength="100" aria-label="Hàm lượng hoạt chất" placeholder="500mg" autocomplete="off" />
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng hoạt chất"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            }
+            <template data-pm-template="ingredients">
+                <div class="pm-line" data-pm-row>
+                    <input type="hidden" name="Ingredients.Index" value="__i__" />
+                    <input type="text" name="Ingredients[__i__].Name" class="form-control" list="ingredient-names" maxlength="200" aria-label="Tên hoạt chất" autocomplete="off" />
+                    <input type="text" name="Ingredients[__i__].Strength" class="form-control" maxlength="100" aria-label="Hàm lượng hoạt chất" placeholder="500mg" autocomplete="off" />
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng hoạt chất"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </template>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-pm-add="ingredients"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm hoạt chất</button>
+    </section>
+
+    @* ---------------- 3. Đơn vị, giá (1.1.4; giá ban đầu theo DEC-09) ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-units">
+        <h2 id="sec-units" class="pm-h2 mb-1">Đơn vị và giá</h2>
+        <p class="small text-muted-pm mb-3">Đơn vị cơ sở là đơn vị nhỏ nhất khi bán (ví dụ Viên). Tồn kho luôn tính theo đơn vị này.</p>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="BaseUnitId" class="form-label">Đơn vị cơ sở <span class="req">*</span></label>
+                @if (Model.IsUsed)
+                {
+                    <input type="hidden" name="BaseUnitId" value="@Model.BaseUnitId" />
+                    <input id="BaseUnitId" class="form-control" value="@baseUnitName" disabled data-pm-base-unit data-unit-name="@baseUnitName" />
+                    <div class="form-text">Thuốc đã có lô hàng hoặc giao dịch nên không đổi được đơn vị cơ sở.</div>
+                }
+                else
+                {
+                    <select asp-for="BaseUnitId" class="form-select" data-pm-base-unit>
+                        <option value="">— Chọn —</option>
+                        @foreach (var u in Model.UnitOptions)
+                        {
+                            <option value="@u.Id">@u.Name</option>
+                        }
+                    </select>
+                }
+                <span asp-validation-for="BaseUnitId" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label for="DefaultPurchasePrice" class="form-label">Giá nhập / <span data-pm-base-unit-name>@baseUnitName</span> <span class="opt">(tham khảo)</span></label>
+                <div class="input-group">
+                    <input type="number" id="DefaultPurchasePrice" name="DefaultPurchasePrice" value="@Format.Input(Model.DefaultPurchasePrice)" class="form-control text-end" min="0" step="any" inputmode="decimal" />
+                    <span class="input-group-text">đ</span>
+                </div>
+                <span asp-validation-for="DefaultPurchasePrice" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label for="DefaultSellingPrice" class="form-label">Giá bán / <span data-pm-base-unit-name>@baseUnitName</span> @if (!Model.PricesLocked) { <span class="req">*</span> }</label>
+                @if (Model.PricesLocked)
+                {
+                    <div class="form-control pm-readonly num" id="DefaultSellingPrice" data-pm-base-price="@Format.Input(Model.DefaultSellingPrice)">@Format.Money(Model.DefaultSellingPrice)</div>
+                    <div class="form-text"><i class="bi bi-lock" aria-hidden="true"></i> Giá đã khai báo. Chỉ chủ nhà thuốc đổi giá ở Chính sách giá (1.5.4).</div>
+                }
+                else
+                {
+                    <div class="input-group">
+                        <input type="number" id="DefaultSellingPrice" name="DefaultSellingPrice" value="@Format.Input(Model.DefaultSellingPrice)" class="form-control text-end" min="0" step="any" inputmode="decimal" data-pm-base-price-input />
+                        <span class="input-group-text">đ</span>
+                    </div>
+                    <div class="form-text">Khai báo một lần; sau khi lưu, chỉ chủ nhà thuốc đổi được giá.</div>
+                }
+                <span asp-validation-for="DefaultSellingPrice" class="field-validation-error"></span>
+            </div>
+        </div>
+
+        <h3 class="pm-h3 mt-4 mb-1">Quy đổi Hộp – Vỉ – Viên</h3>
+        <p class="small text-muted-pm mb-3">
+            Mỗi dòng: 1 đơn vị lớn bằng bao nhiêu <span data-pm-base-unit-name>@baseUnitName</span>. Ví dụ 1 Hộp = 100, 1 Vỉ = 10.
+            Giá để trống thì tự tính = giá bán đơn vị cơ sở × số lượng.
+        </p>
+        @if (!Model.CanEditConversions)
+        {
+            <div class="pm-alert calm small mb-3">Khai báo quy đổi cần quyền 1.1.4 — bạn chỉ xem được các dòng đã có.</div>
+        }
+        <div class="pm-lines pm-lines-conv" data-pm-repeater="conversions" data-pm-next="@Model.Conversions.Count">
+            <div class="pm-line pm-line-head" aria-hidden="true">
+                <span>Đơn vị</span><span>Bằng (đơn vị cơ sở)</span><span>Giá bán</span><span>Mặc định khi bán</span><span></span>
+            </div>
+            @for (var i = 0; i < Model.Conversions.Count; i++)
+            {
+                var line = Model.Conversions[i];
+                var unitName = Model.UnitOptions.FirstOrDefault(u => u.Id == line.UnitId)?.Name;
+                <div class="pm-line" data-pm-row>
+                    <input type="hidden" name="Conversions.Index" value="@i" />
+                    @if (line.ConversionId is not null)
+                    {
+                        <input type="hidden" name="Conversions[@i].ConversionId" value="@line.ConversionId" />
+                    }
+                    @if (line.Locked)
+                    {
+                        <input type="hidden" name="Conversions[@i].UnitId" value="@line.UnitId" />
+                        <input type="hidden" name="Conversions[@i].ConversionToBase" value="@Format.Input(line.ConversionToBase)" />
+                        <span class="pm-readonly">@unitName</span>
+                        <span class="pm-readonly num" data-pm-factor="@Format.Input(line.ConversionToBase)">@Format.Number(line.ConversionToBase ?? 0) <span data-pm-base-unit-name>@baseUnitName</span></span>
+                    }
+                    else
+                    {
+                        <select name="Conversions[@i].UnitId" class="form-select" aria-label="Đơn vị quy đổi">
+                            <option value="">— Chọn —</option>
+                            @foreach (var u in Model.UnitOptions)
+                            {
+                                <!option value="@u.Id" selected="@(u.Id == line.UnitId)">@u.Name</!option>
+                            }
+                        </select>
+                        <input type="number" name="Conversions[@i].ConversionToBase" value="@Format.Input(line.ConversionToBase)" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Số đơn vị cơ sở" data-pm-factor-input />
+                    }
+                    @if (line.PriceLocked)
+                    {
+                        <span class="pm-readonly num" title="Giá đã khai báo — đổi ở Chính sách giá (1.5.4)">
+                            @(line.SellingPrice is null ? "Tự tính" : Format.Money(line.SellingPrice.Value)) <i class="bi bi-lock small" aria-hidden="true"></i>
+                        </span>
+                    }
+                    else
+                    {
+                        <input type="number" name="Conversions[@i].SellingPrice" value="@Format.Input(line.SellingPrice)" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Giá bán của đơn vị này" placeholder="Tự tính" data-pm-auto-price />
+                    }
+                    <label class="pm-check">
+                        <input type="checkbox" name="Conversions[@i].IsDefaultSaleUnit" value="true" checked="@line.IsDefaultSaleUnit" disabled="@(!Model.CanEditConversions)" data-pm-single-check="default-unit" />
+                        <span class="visually-hidden">Đơn vị mặc định khi bán</span>
+                    </label>
+                    @if (!line.Locked && Model.CanEditConversions)
+                    {
+                        <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng quy đổi"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                    }
+                    else
+                    {
+                        <span></span>
+                    }
+                </div>
+            }
+            <template data-pm-template="conversions">
+                <div class="pm-line" data-pm-row>
+                    <input type="hidden" name="Conversions.Index" value="__i__" />
+                    <select name="Conversions[__i__].UnitId" class="form-select" aria-label="Đơn vị quy đổi">
+                        <option value="">— Chọn —</option>
+                        @foreach (var u in Model.UnitOptions)
+                        {
+                            <option value="@u.Id">@u.Name</option>
+                        }
+                    </select>
+                    <input type="number" name="Conversions[__i__].ConversionToBase" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Số đơn vị cơ sở" data-pm-factor-input />
+                    <input type="number" name="Conversions[__i__].SellingPrice" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Giá bán của đơn vị này" placeholder="Tự tính" data-pm-auto-price />
+                    <label class="pm-check">
+                        <input type="checkbox" name="Conversions[__i__].IsDefaultSaleUnit" value="true" data-pm-single-check="default-unit" />
+                        <span class="visually-hidden">Đơn vị mặc định khi bán</span>
+                    </label>
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng quy đổi"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </template>
+        </div>
+        @if (Model.CanEditConversions)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-pm-add="conversions"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm đơn vị quy đổi</button>
+        }
+        @if (Model.IsUsed)
+        {
+            <p class="form-text mt-2 mb-0">Thuốc đã có lô hàng hoặc giao dịch: các dòng quy đổi cũ bị khóa, vẫn thêm được đơn vị mới.</p>
+        }
+    </section>
+
+    @* ---------------- 4. An toàn khi bán (kiểm tra 3.1.3, 3.2.2) ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-safety">
+        <h2 id="sec-safety" class="pm-h2 mb-1">An toàn khi bán</h2>
+        <p class="small text-muted-pm mb-3">Dùng để cảnh báo dược sĩ khi bán. Hệ thống chỉ cảnh báo, dược sĩ quyết định.</p>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="ContraindicationKeywords" class="form-label"></label>
+                <textarea asp-for="ContraindicationKeywords" class="form-control" rows="4" placeholder="suy gan&#10;phụ nữ có thai"></textarea>
+                <div class="form-text">Mỗi dòng một từ khóa. Đối chiếu với chẩn đoán và bệnh mạn tính của khách khi bán theo đơn.</div>
+                <span asp-validation-for="ContraindicationKeywords" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Contraindications" class="form-label"></label>
+                <textarea asp-for="Contraindications" class="form-control" rows="4" maxlength="1000"></textarea>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Interactions" class="form-label"></label>
+                <textarea asp-for="Interactions" class="form-control" rows="3" maxlength="1000"></textarea>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="UsageInstructions" class="form-label"></label>
+                <textarea asp-for="UsageInstructions" class="form-control" rows="3" maxlength="1000"></textarea>
+            </div>
+            <div class="col-sm-4">
+                <label for="MaxSingleDose" class="form-label">Liều tối đa 1 lần <span class="opt">(<span data-pm-base-unit-name>@baseUnitName</span>)</span></label>
+                <input type="number" id="MaxSingleDose" name="MaxSingleDose" value="@Format.Input(Model.MaxSingleDose)" class="form-control text-end" min="0" step="any" inputmode="decimal" />
+                <span asp-validation-for="MaxSingleDose" class="field-validation-error"></span>
+            </div>
+            <div class="col-sm-4">
+                <label for="MaxDailyDose" class="form-label">Liều tối đa 1 ngày <span class="opt">(<span data-pm-base-unit-name>@baseUnitName</span>)</span></label>
+                <input type="number" id="MaxDailyDose" name="MaxDailyDose" value="@Format.Input(Model.MaxDailyDose)" class="form-control text-end" min="0" step="any" inputmode="decimal" />
+                <span asp-validation-for="MaxDailyDose" class="field-validation-error"></span>
+            </div>
+            <div class="col-sm-4">
+                <label asp-for="MinPatientAgeYears" class="form-label">Tuổi tối thiểu <span class="opt">(năm)</span></label>
+                <input asp-for="MinPatientAgeYears" class="form-control text-end" type="number" min="0" max="120" step="1" />
+                <span asp-validation-for="MinPatientAgeYears" class="field-validation-error"></span>
+            </div>
+        </div>
+    </section>
+
+    <div class="pm-form-actions">
+        <button type="submit" class="btn btn-primary">@(Model.IsEdit ? "Lưu thay đổi" : "Thêm thuốc")</button>
+        @if (Model.IsEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.MedicineId">Hủy</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary" asp-action="Index">Hủy</a>
+        }
+    </div>
+</form>

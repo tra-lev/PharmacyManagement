@@ -1,0 +1,10 @@
+﻿@model MenuItem?
+@{
+    ViewData["Title"] = Model?.Title ?? "Đang xây dựng";
+}
+<section class="pm-card pm-narrow text-center mx-auto">
+    <span class="pm-avatar soft lg mx-auto" aria-hidden="true"><i class="bi bi-@(Model?.Icon ?? "tools") fs-4"></i></span>
+    <h1 class="pm-title fs-3 mt-3">@(Model?.Title ?? "Chức năng chưa có")</h1>
+    <p class="text-muted-pm">Chức năng này đang được xây dựng, chưa dùng được.</p>
+    <a class="btn btn-outline-secondary" href="/">Về trang tổng quan</a>
+</section>

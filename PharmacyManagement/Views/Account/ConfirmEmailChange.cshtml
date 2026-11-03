@@ -1,0 +1,30 @@
+﻿@model ConfirmEmailChangeViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Xác nhận email mới";
+}
+<div>
+    <h1>Xác nhận email mới</h1>
+    <p class="text-muted-pm mb-0">
+        Chủ nhà thuốc đã đổi email đăng nhập của bạn. Nhập email mới và mã 6 số gửi tới email đó.
+        Trước khi xác nhận, bạn vẫn đăng nhập bằng email cũ.
+    </p>
+</div>
+
+<form asp-action="ConfirmEmailChange" method="post" class="d-flex flex-column gap-3">
+    <div asp-validation-summary="ModelOnly" class="pm-alert bad" role="alert"></div>
+    <div>
+        <label asp-for="NewEmail" class="form-label"></label>
+        <input asp-for="NewEmail" class="form-control" autocomplete="email" />
+        <span asp-validation-for="NewEmail" class="field-validation-error"></span>
+    </div>
+    <div>
+        <label asp-for="Code" class="form-label"></label>
+        <input asp-for="Code" class="form-control pm-code" data-pm-lazy inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" />
+        <span asp-validation-for="Code" class="field-validation-error"></span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg w-100">Xác nhận</button>
+</form>
+<p class="small text-muted-pm mb-0">Mã hết hạn sau 15 phút. Hết hạn thì báo chủ nhà thuốc gửi lại.</p>
+
+@section Scripts { <partial name="_FormValidation" /> }

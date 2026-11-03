@@ -1,0 +1,44 @@
+﻿@model FirstLoginViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Hoàn tất hồ sơ chủ nhà thuốc";
+}
+<partial name="_Steps" model="@((1, new[] { "Hồ sơ & mật khẩu", "Xác minh email", "Bắt đầu" }))" />
+<div>
+    <h1>Hoàn tất hồ sơ</h1>
+    <p class="text-muted-pm mb-0">Bạn đang dùng mật khẩu khởi tạo. Khai báo họ tên thật và đặt mật khẩu mới để tiếp tục.</p>
+</div>
+
+<dl class="pm-inner row g-0 small mb-0">
+    <dt class="col-5 text-muted-pm fw-normal">Tên tài khoản</dt><dd class="col-7 mb-1 fw-semibold">@Model.UserName</dd>
+    <dt class="col-5 text-muted-pm fw-normal">Email đăng nhập</dt><dd class="col-7 mb-0 text-break">@User.FindFirstValue(ClaimTypes.Email)</dd>
+</dl>
+
+<form asp-action="FirstLogin" method="post" class="d-flex flex-column gap-3">
+    <div asp-validation-summary="ModelOnly" class="pm-alert bad" role="alert"></div>
+    @* Giúp trình quản lý mật khẩu lưu đúng tài khoản; server không đọc ô này. *@
+    <input type="hidden" name="pm-login-hint" value="@User.FindFirstValue(ClaimTypes.Email)" autocomplete="username" />
+    <div>
+        <label asp-for="FullName" class="form-label"></label>
+        <input asp-for="FullName" class="form-control" autocomplete="name" autofocus />
+        <div class="form-text">Họ tên thật, dùng trên hóa đơn, báo cáo, chứng từ và sổ GPP. Không dùng tên tài khoản, email hay “Chủ nhà thuốc”.</div>
+        <span asp-validation-for="FullName" class="field-validation-error"></span>
+    </div>
+    <div>
+        <label asp-for="NewPassword" class="form-label"></label>
+        <div class="pm-pw-wrap">
+            <input asp-for="NewPassword" class="form-control" autocomplete="new-password" />
+            <button type="button" class="pm-pw-toggle" data-pm-toggle-password="NewPassword" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button>
+        </div>
+        <partial name="_PasswordRules" model="@("NewPassword")" />
+        <span asp-validation-for="NewPassword" class="field-validation-error"></span>
+    </div>
+    <div>
+        <label asp-for="ConfirmPassword" class="form-label"></label>
+        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="field-validation-error"></span>
+    </div>
+    <button type="submit" class="btn btn-primary btn-lg w-100">Lưu và tiếp tục</button>
+</form>
+
+@section Scripts { <partial name="_FormValidation" /> }

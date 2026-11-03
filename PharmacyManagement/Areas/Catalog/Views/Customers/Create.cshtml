@@ -1,0 +1,18 @@
+﻿@model CustomerFormViewModel
+@{
+    ViewData["Title"] = "Thêm khách hàng";
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Khách hàng</a> / Thêm khách hàng</p>
+        <h1 class="pm-title">Thêm khách hàng</h1>
+        <p class="pm-subtitle">Lưu thông tin liên hệ, bệnh nền và dị ứng để cảnh báo khi bán và theo dõi lịch sử mua.</p>
+    </div>
+</div>
+
+<partial name="_CustomerForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+}

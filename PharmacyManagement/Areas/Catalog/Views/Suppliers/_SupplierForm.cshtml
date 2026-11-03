@@ -1,0 +1,62 @@
+﻿@model SupplierFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+}
+
+<form asp-action="@action" asp-route-id="@Model.SupplierId" method="post" class="d-flex flex-column gap-4" novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+
+    <section class="pm-card" aria-labelledby="sec-general">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+            <h2 id="sec-general" class="pm-h2">Thông tin nhà cung cấp</h2>
+            <span class="small text-muted-pm">Mã nhà cung cấp: <strong class="text-reset">@Model.SupplierCode</strong>@(Model.IsEdit ? "" : " (dự kiến, tự sinh khi lưu)")</span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label asp-for="SupplierName" class="form-label"><span>Tên nhà cung cấp</span> <span class="req">*</span></label>
+                <input asp-for="SupplierName" class="form-control" autocomplete="off" placeholder="Công ty TNHH Dược phẩm…" />
+                <span asp-validation-for="SupplierName" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="TaxCode" class="form-label">Mã số thuế <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="TaxCode" class="form-control" inputmode="numeric" autocomplete="off" placeholder="0312345678" />
+                <span asp-validation-for="TaxCode" class="field-validation-error"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="ContactPerson" class="form-label">Người liên hệ <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="ContactPerson" class="form-control" autocomplete="off" />
+                <span asp-validation-for="ContactPerson" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Phone" class="form-control" type="tel" inputmode="tel" autocomplete="off" placeholder="0281234567" />
+                <span asp-validation-for="Phone" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Email" class="form-label">Email <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Email" class="form-control" type="email" autocomplete="off" />
+                <span asp-validation-for="Email" class="field-validation-error"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Address" class="form-label">Địa chỉ <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Address" class="form-control" autocomplete="off" />
+                <span asp-validation-for="Address" class="field-validation-error"></span>
+            </div>
+        </div>
+        <p class="form-text mb-0 mt-3">Tên nhà cung cấp và mã số thuế không được trùng với nhà cung cấp đã có.</p>
+    </section>
+
+    <div class="pm-form-actions">
+        <button type="submit" class="btn btn-primary">@(Model.IsEdit ? "Lưu thay đổi" : "Thêm nhà cung cấp")</button>
+        @if (Model.IsEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.SupplierId">Hủy</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary" asp-action="Index">Hủy</a>
+        }
+    </div>
+</form>

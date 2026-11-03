@@ -1,0 +1,19 @@
+﻿@{
+    ViewData["Title"] = "Không có quyền";
+    if (User.Identity?.IsAuthenticated != true) Layout = "_AuthLayout";
+    var needsVerifiedEmail = ViewData["NeedsVerifiedEmail"] as bool? == true;
+}
+<section class="pm-card pm-narrow text-center mx-auto">
+    <i class="bi bi-shield-lock fs-1 text-muted-pm" aria-hidden="true"></i>
+    <h1 class="pm-title fs-3 mt-2">Không mở được trang này</h1>
+    @if (needsVerifiedEmail)
+    {
+        <p class="text-muted-pm">Chức năng này cần email đã xác minh. Xác minh email rồi thử lại.</p>
+        <a class="btn btn-primary" asp-action="VerifyEmail">Xác minh email</a>
+    }
+    else
+    {
+        <p class="text-muted-pm">Vai trò của bạn không được dùng chức năng này. Nếu cần, liên hệ chủ nhà thuốc.</p>
+        <a class="btn btn-outline-secondary" href="/">Về trang tổng quan</a>
+    }
+</section>

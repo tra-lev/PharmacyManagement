@@ -1,0 +1,293 @@
+﻿@model UserListViewModel
+@{
+    ViewData["Title"] = "Tài khoản";
+    var invite = Model.Invite;
+    var hasExisting = Model.InvitableEmployees.Count > 0;
+    // Không còn nhân viên chưa có tài khoản thì mặc định tạo hồ sơ mới.
+    var newEmployee = invite.NewEmployee || !hasExisting;
+}
+@functions {
+    private static (string Css, string Text) StateBadge(AccountState s) => s switch
+    {
+        AccountState.Owner or AccountState.Active => ("good", "Đang hoạt động"),
+        AccountState.OwnerUnverified => ("warn", "Chưa xác minh email"),
+        AccountState.Pending => ("wait", "Chờ kích hoạt"),
+        AccountState.PendingExpired => ("warn", "Mã mời hết hạn"),
+        AccountState.SendFailed => ("bad", "Chưa gửi được email"),
+        AccountState.TemporarilyLocked => ("warn", "Tạm khóa do sai mật khẩu"),
+        AccountState.Locked => ("bad", "Đã khóa"),
+        AccountState.FormerEmployee => ("mute", "Đã nghỉ việc"),
+        _ => ("mute", "Chưa có tài khoản")
+    };
+
+    private static string RoleCss(string? role) => role == RoleNames.Owner ? "ink" : role is null ? "mute" : "calm";
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Quản trị</p>
+        <h1 class="pm-title">Tài khoản</h1>
+        <p class="pm-subtitle">Chỉ chủ nhà thuốc mời và quản lý tài khoản. Mỗi nhân viên dùng một email riêng.</p>
+    </div>
+    @if (Model.EmailConfigured)
+    {
+        <button type="button" class="btn btn-primary" data-bs-toggle="collapse" data-bs-target="#invite-panel"
+                aria-controls="invite-panel" aria-expanded="@(Model.OpenInvite ? "true" : "false")">
+            <i class="bi bi-envelope-plus" aria-hidden="true"></i> Mời nhân viên
+        </button>
+    }
+</div>
+
+@if (!Model.EmailConfigured)
+{
+    <div class="pm-alert bad mb-4" role="alert">
+        <strong>Chưa gửi được lời mời:</strong> hệ thống chưa cấu hình tài khoản gửi email.
+        Đặt <code>Email:SenderAddress</code> và <code>Email:AppPassword</code> (Gmail App Password) trong User Secrets theo README, rồi chạy lại ứng dụng.
+    </div>
+}
+
+@* ---------------- Khung mời ---------------- *@
+@if (Model.EmailConfigured)
+{
+    <section id="invite-panel" class="collapse @(Model.OpenInvite ? "show" : "") mb-4" aria-labelledby="invite-title">
+        <div class="pm-card">
+            <div class="row g-4">
+                <div class="col-lg-4">
+                    <h2 id="invite-title" class="pm-h2">Mời nhân viên</h2>
+                    <ol class="small text-muted-pm ps-3 mt-2 mb-0 d-flex flex-column gap-1">
+                        <li>Hệ thống gửi mã 6 số tới email nhân viên (hiệu lực 15 phút).</li>
+                        <li>Nhân viên mở trang <strong>Kích hoạt tài khoản</strong>, nhập email và mã.</li>
+                        <li>Nhân viên tự đặt mật khẩu. Bạn không biết và không cần biết mật khẩu.</li>
+                    </ol>
+                </div>
+                <div class="col-lg-8">
+                    <form asp-action="Invite" method="post" data-pm-conditional class="d-flex flex-column gap-3">
+                        <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+
+                        <fieldset>
+                            <legend class="form-label">Nhân viên</legend>
+                            <div class="pm-seg" role="radiogroup">
+                                <label>
+                                    <input type="radio" name="NewEmployee" value="false" checked="@(!newEmployee)" disabled="@(!hasExisting)" />
+                                    <span>Đã có hồ sơ</span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="NewEmployee" value="true" checked="@newEmployee" />
+                                    <span>Nhân viên mới</span>
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <div data-pm-show-when="NewEmployee=false">
+                            <label asp-for="Invite.EmployeeId" class="form-label">Chọn nhân viên chưa có tài khoản</label>
+                            <select name="EmployeeId" id="Invite_EmployeeId" class="form-select" data-pm-fill-email="Invite_Email"
+                                    data-val="true" data-val-required="Chọn nhân viên cần mời.">
+                                @* Dấu ! tắt tag helper của <option> để thuộc tính selected="false" được bỏ hẳn. *@
+                                <option value="">— Chọn —</option>
+                                @foreach (var e in Model.InvitableEmployees)
+                                {
+                                    <!option value="@e.EmployeeId" data-email="@e.Email" selected="@(invite.EmployeeId == e.EmployeeId)">@e.Label</!option>
+                                }
+                            </select>
+                            <span class="field-validation-valid" data-valmsg-for="EmployeeId" data-valmsg-replace="true"></span>
+                        </div>
+
+                        <div data-pm-show-when="NewEmployee=true" class="row g-3">
+                            <div class="col-sm-7">
+                                <label for="Invite_FullName" class="form-label">Họ tên <span class="req">*</span></label>
+                                <input type="text" name="FullName" id="Invite_FullName" value="@invite.FullName" class="form-control" maxlength="150" autocomplete="off"
+                                       data-val="true" data-val-required="Nhập họ tên nhân viên." />
+                                <span class="field-validation-valid" data-valmsg-for="FullName" data-valmsg-replace="true"></span>
+                            </div>
+                            <div class="col-sm-5">
+                                <label for="Invite_Phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
+                                <input type="tel" name="Phone" id="Invite_Phone" value="@invite.Phone" class="form-control" maxlength="20" inputmode="tel" autocomplete="off"
+                                       data-val="true" data-val-regex="Số điện thoại chỉ gồm chữ số." data-val-regex-pattern="^[0-9+\s.\-]*$" />
+                                <span class="field-validation-valid" data-valmsg-for="Phone" data-valmsg-replace="true"></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="Invite_Email" class="form-label">Email nhận lời mời <span class="req">*</span></label>
+                            <input type="email" name="Email" id="Invite_Email" value="@invite.Email" class="form-control" maxlength="256" autocomplete="off"
+                                   data-val="true" data-val-required="Nhập email của nhân viên." data-val-email="Email chưa đúng dạng, ví dụ ten@@gmail.com." />
+                            <span class="field-validation-valid" data-valmsg-for="Email" data-valmsg-replace="true"></span>
+                            <div class="form-text">Email đăng nhập; tên tài khoản là phần trước @@ (ví dụ ten.nv@@gmail.com → ten.nv). Mỗi email chỉ gắn với một tài khoản.</div>
+                        </div>
+
+                        <fieldset>
+                            <legend class="form-label">Vai trò <span class="req">*</span></legend>
+                            <div class="pm-choice">
+                                @foreach (var role in RoleNames.Invitable)
+                                {
+                                    <label>
+                                        <input type="radio" name="Role" value="@role" checked="@(invite.Role == role)" />
+                                        <span>@RoleNames.DisplayName(role)</span>
+                                        <small class="text-muted-pm">
+                                            @(role == RoleNames.Manager ? "Danh mục, kho, đổi trả, báo cáo; bán hàng như dược sĩ" : "Bán hàng, tư vấn, tra cứu tồn")
+                                        </small>
+                                    </label>
+                                }
+                            </div>
+                            <div class="form-text">Không có lựa chọn Chủ nhà thuốc: hệ thống chỉ có một chủ nhà thuốc.</div>
+                        </fieldset>
+
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-send" aria-hidden="true"></i> Gửi lời mời</button>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#invite-panel">Đóng</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+}
+
+@* ---------------- Danh sách ---------------- *@
+<section class="pm-card" aria-labelledby="list-title">
+    <h2 id="list-title" class="pm-h2 mb-2">Nhân viên và tài khoản <span class="text-muted-pm fw-normal fs-6">(@Model.Rows.Count)</span></h2>
+
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-people" aria-hidden="true"></i>
+            Chưa có nhân viên nào.
+        </div>
+    }
+
+    @foreach (var row in Model.Rows)
+    {
+        var badge = StateBadge(row.State);
+        var isOwner = row.RoleName == RoleNames.Owner;
+        <div class="pm-list-row">
+            <span class="pm-avatar @(isOwner ? "" : "soft")" aria-hidden="true">@row.Initials</span>
+            <div class="pm-list-main">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-semibold">@row.FullName</span>
+                    <span class="small text-muted-pm">@row.EmployeeCode</span>
+                    @if (row.RoleName is not null)
+                    {
+                        <span class="pm-badge @RoleCss(row.RoleName)">@RoleNames.DisplayName(row.RoleName)</span>
+                    }
+                    <span class="pm-badge @badge.Css">@badge.Text</span>
+                </div>
+                <div class="small text-muted-pm mt-1 text-break">
+                    @if (!string.IsNullOrEmpty(row.UserName))
+                    {
+                        <span class="fw-semibold text-reset" title="Tên tài khoản">@row.UserName</span><span> · </span>
+                    }
+                    @(row.Email ?? "Chưa có email")
+                    @if (!string.IsNullOrEmpty(row.Detail) && row.Detail != badge.Text)
+                    {
+                        <span> · @row.Detail</span>
+                    }
+                </div>
+                @if (row.PendingNewEmail is not null)
+                {
+                    <div class="small mt-1"><span class="pm-badge wait">Chờ xác nhận email mới</span> <span class="text-break">@row.PendingNewEmail</span></div>
+                }
+            </div>
+
+            <div class="pm-list-actions">
+                @if (isOwner)
+                {
+                    <span class="small text-muted-pm">Chủ nhà thuốc duy nhất</span>
+                }
+                @if (row.CanInvite && Model.EmailConfigured)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Index" asp-route-invite="@row.EmployeeId">Mời</a>
+                }
+                @if (row.CanResend && Model.EmailConfigured)
+                {
+                    <form asp-action="Resend" method="post">
+                        <input type="hidden" name="employeeId" value="@row.EmployeeId" />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Gửi lại mã</button>
+                    </form>
+                }
+                @if (row.CanCancelInvite)
+                {
+                    <form asp-action="CancelInvite" method="post">
+                        <input type="hidden" name="employeeId" value="@row.EmployeeId" />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Hủy lời mời</button>
+                    </form>
+                }
+                @if (row.CanChangeEmail && !isOwner && Model.EmailConfigured)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#email-modal"
+                            data-id="@row.EmployeeId" data-name="@row.FullName" data-email="@row.Email">Đổi email</button>
+                }
+                @if (row.CanLock && !isOwner)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#lock-modal"
+                            data-id="@row.EmployeeId" data-name="@row.FullName">Khóa</button>
+                }
+                @if (row.CanUnlock && !isOwner)
+                {
+                    <form asp-action="Unlock" method="post">
+                        <input type="hidden" name="employeeId" value="@row.EmployeeId" />
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">Mở khóa</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+</section>
+
+@* ---------------- Hộp thoại đổi email ---------------- *@
+<div class="modal fade" id="email-modal" tabindex="-1" aria-labelledby="email-modal-title" aria-hidden="true" data-pm-row-modal>
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" asp-action="ChangeEmail" method="post">
+            <div class="modal-header">
+                <h2 class="modal-title pm-h2" id="email-modal-title">Đổi email đăng nhập</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body d-flex flex-column gap-3">
+                <input type="hidden" name="EmployeeId" data-pm-fill="id" />
+                <p class="mb-0">Nhân viên: <strong data-pm-fill="name"></strong><br /><span class="small text-muted-pm">Email hiện tại: <span data-pm-fill="email"></span></span></p>
+                <div>
+                    <label for="NewEmail" class="form-label">Email mới <span class="req">*</span></label>
+                    <input type="email" name="NewEmail" id="NewEmail" class="form-control" maxlength="256" autocomplete="off"
+                           data-val="true" data-val-required="Nhập email mới." data-val-email="Email chưa đúng dạng, ví dụ ten@@gmail.com." />
+                    <span class="field-validation-valid" data-valmsg-for="NewEmail" data-valmsg-replace="true"></span>
+                </div>
+                <div class="pm-alert calm small">
+                    Hệ thống gửi mã tới email mới. Email chỉ được đổi khi nhân viên nhập đúng mã ở trang
+                    <strong>Xác nhận email mới</strong>. Trước đó nhân viên vẫn đăng nhập bằng email cũ.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-primary">Gửi mã tới email mới</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@* ---------------- Hộp thoại khóa tài khoản ---------------- *@
+<div class="modal fade" id="lock-modal" tabindex="-1" aria-labelledby="lock-modal-title" aria-hidden="true" data-pm-row-modal>
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" asp-action="Lock" method="post">
+            <div class="modal-header">
+                <h2 class="modal-title pm-h2" id="lock-modal-title">Khóa tài khoản</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body d-flex flex-column gap-3">
+                <input type="hidden" name="EmployeeId" data-pm-fill="id" />
+                <p class="mb-0">Khóa tài khoản của <strong data-pm-fill="name"></strong>. Người này bị đăng xuất trong vòng 1 phút và không đăng nhập được cho đến khi bạn mở khóa. Dữ liệu bán hàng, kho đã ghi vẫn giữ nguyên.</p>
+                <div>
+                    <label for="Reason" class="form-label">Lý do <span class="req">*</span></label>
+                    <textarea name="Reason" id="Reason" class="form-control" rows="3" maxlength="300"
+                              data-val="true" data-val-required="Nhập lý do khóa tài khoản."></textarea>
+                    <span class="field-validation-valid" data-valmsg-for="Reason" data-valmsg-replace="true"></span>
+                    <div class="form-text">Lý do được ghi vào nhật ký hoạt động.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="submit" class="btn btn-danger">Khóa tài khoản</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts { <partial name="_FormValidation" /> }

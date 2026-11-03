@@ -1,0 +1,144 @@
+﻿@model ManageViewModel
+@{
+    ViewData["Title"] = "Tài khoản của tôi";
+}
+<div class="pm-page-head">
+    <div>
+        <h1 class="pm-title">Tài khoản của tôi</h1>
+        <p class="pm-subtitle">Thông tin đăng nhập và mật khẩu.</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="me-info">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 id="me-info" class="pm-h2">Thông tin</h2>
+                @if (Model.IsOwner && !Model.EditingProfile)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Manage" asp-route-editProfile="true" asp-fragment="profile-name">
+                        <i class="bi bi-pencil" aria-hidden="true"></i> Chỉnh sửa hồ sơ
+                    </a>
+                }
+            </div>
+
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <span class="pm-avatar lg" aria-hidden="true">@AccountHelpers.Initials(Model.UserName)</span>
+                <div class="min-w-0">
+                    <div class="fw-semibold text-break" title="@Model.Email">@Model.UserName</div>
+                    <div class="small text-muted-pm">@Model.RoleDisplay</div>
+                </div>
+            </div>
+
+            <dl class="mb-0">
+                <dt class="small text-muted-pm fw-normal">Tên tài khoản</dt>
+                <dd>
+                    <span class="fw-semibold">@Model.UserName</span>
+                    <div class="form-text mt-0">Phần trước @@ của email, dùng để đăng nhập. Tự đổi theo email.</div>
+                </dd>
+
+                <dt class="small text-muted-pm fw-normal">Email đăng nhập</dt>
+                <dd class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="text-break">@Model.Email</span>
+                    @if (Model.EmailVerified)
+                    {
+                        <span class="pm-badge good"><i class="bi bi-check2" aria-hidden="true"></i>Đã xác minh</span>
+                    }
+                    else
+                    {
+                        <span class="pm-badge warn">Chưa xác minh</span>
+                    }
+                </dd>
+
+                <dt class="small text-muted-pm fw-normal" id="profile-name">Họ và tên đầy đủ</dt>
+                <dd>
+                    @if (Model.EditingProfile)
+                    {
+                        if (Model.FullNameNeedsUpdate)
+                        {
+                            <div class="pm-alert warn small mt-1 mb-2" role="status">
+                                @(string.IsNullOrEmpty(Model.FullName) ? "Chưa có họ tên thật." : $"Hồ sơ đang ghi “{Model.FullName}” — đây không phải họ tên thật.")
+                                Họ tên được dùng trên hóa đơn, báo cáo và chứng từ, hãy khai báo ngay.
+                            </div>
+                        }
+                        <form asp-action="UpdateProfile" method="post" class="d-flex flex-column gap-2 mt-1">
+                            <label asp-for="Profile.FullName" class="visually-hidden"></label>
+                            <input asp-for="Profile.FullName" class="form-control" autocomplete="name" autofocus />
+                            <span asp-validation-for="Profile.FullName" class="field-validation-error"></span>
+                            <div class="form-text mt-0">Họ tên thật — in trên hóa đơn, báo cáo, chứng từ, sổ GPP và nhật ký hoạt động. Không dùng tên tài khoản, email hay tên vai trò.</div>
+                            <div class="d-flex gap-2 mt-1">
+                                <button type="submit" class="btn btn-sm btn-primary">Lưu</button>
+                                <a class="btn btn-sm btn-outline-secondary" asp-action="Manage">Hủy</a>
+                            </div>
+                        </form>
+                    }
+                    else if (Model.FullNameNeedsUpdate)
+                    {
+                        <span class="pm-badge warn">Chưa khai báo họ tên thật</span>
+                        @if (Model.IsOwner)
+                        {
+                            <div class="form-text mt-1">Bấm “Chỉnh sửa hồ sơ” để khai báo họ tên thật.</div>
+                        }
+                    }
+                    else
+                    {
+                        <span class="fw-semibold">@Model.FullName</span>
+                        @if (!Model.IsOwner)
+                        {
+                            <div class="form-text mt-0">Do chủ nhà thuốc khai báo. Sai họ tên, báo chủ nhà thuốc.</div>
+                        }
+                    }
+                </dd>
+
+                <dt class="small text-muted-pm fw-normal">Vai trò</dt>
+                <dd class="mb-0">@Model.RoleDisplay</dd>
+            </dl>
+
+            @if (!Model.EmailVerified)
+            {
+                <a class="btn btn-primary mt-3" asp-action="VerifyEmail">Xác minh email</a>
+            }
+            <p class="small text-muted-pm mt-4 mb-0">
+                @if (Model.IsOwner)
+                {
+                    @:Email của chủ nhà thuốc chỉ đổi được bằng lệnh khôi phục chạy trên máy chủ (xem README, mục Khôi phục Owner).
+                }
+                else
+                {
+                    @:Muốn đổi email đăng nhập, báo chủ nhà thuốc. Bạn sẽ nhận mã ở email mới để xác nhận.
+                }
+            </p>
+        </section>
+    </div>
+    <div class="col-lg-7">
+        <section class="pm-card" aria-labelledby="me-pw">
+            <h2 id="me-pw" class="pm-h2 mb-1">Đổi mật khẩu</h2>
+            <p class="text-muted-pm small mb-3">Sau khi đổi, các phiên đăng nhập trên máy khác sẽ tự đăng xuất.</p>
+            <form asp-action="ChangePassword" method="post" class="d-flex flex-column gap-3 pm-form-narrow">
+                <div asp-validation-summary="ModelOnly" class="pm-alert bad" role="alert"></div>
+                <div>
+                    <label asp-for="ChangePassword.CurrentPassword" class="form-label"></label>
+                    <input asp-for="ChangePassword.CurrentPassword" class="form-control" autocomplete="current-password" />
+                    <span asp-validation-for="ChangePassword.CurrentPassword" class="field-validation-error"></span>
+                </div>
+                <div>
+                    <label asp-for="ChangePassword.NewPassword" class="form-label"></label>
+                    <div class="pm-pw-wrap">
+                        <input asp-for="ChangePassword.NewPassword" class="form-control" autocomplete="new-password" />
+                        <button type="button" class="pm-pw-toggle" data-pm-toggle-password="ChangePassword_NewPassword" aria-pressed="false" aria-label="Hiện mật khẩu">Hiện</button>
+                    </div>
+                    <partial name="_PasswordRules" model="@("ChangePassword_NewPassword")" />
+                    <span asp-validation-for="ChangePassword.NewPassword" class="field-validation-error"></span>
+                </div>
+                <div>
+                    <label asp-for="ChangePassword.ConfirmPassword" class="form-label"></label>
+                    <input asp-for="ChangePassword.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ChangePassword.ConfirmPassword" class="field-validation-error"></span>
+                </div>
+                <div><button type="submit" class="btn btn-primary">Đổi mật khẩu</button></div>
+            </form>
+        </section>
+    </div>
+</div>
+
+@section Scripts { <partial name="_FormValidation" /> }

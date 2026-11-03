@@ -1,0 +1,58 @@
+﻿@model HomeIndexViewModel
+@{
+    ViewData["Title"] = "Tổng quan";
+}
+<div class="pm-page-head">
+    <div>
+        <h1 class="pm-title">Chào @Model.UserName</h1>
+        <p class="pm-subtitle">@RoleNames.DisplayName(Model.RoleName)</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="home-data">
+            <h2 id="home-data" class="pm-h2 mb-2">Số liệu hôm nay</h2>
+            <div class="pm-empty">
+                <i class="bi bi-bar-chart" aria-hidden="true"></i>
+                Doanh thu, thuốc sắp hết hạn và tồn thấp sẽ hiện ở đây khi phân hệ Bán hàng và Kho được đưa vào sử dụng.
+            </div>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="home-todo">
+            <h2 id="home-todo" class="pm-h2 mb-3">Việc cần làm</h2>
+            <div class="d-flex flex-column gap-2">
+                @if (!Model.EmailVerified)
+                {
+                    <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-controller="Account" asp-action="VerifyEmail">
+                        <span class="pm-badge warn">Cần làm</span>
+                        <span class="flex-grow-1">Xác minh email đăng nhập</span>
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </a>
+                }
+                @if (Model.NeedsFullName)
+                {
+                    <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-controller="Account" asp-action="Manage" asp-route-editProfile="true">
+                        <span class="pm-badge warn">Cần làm</span>
+                        <span class="flex-grow-1">Khai báo họ và tên thật</span>
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </a>
+                }
+                @if (Model.IsOwner)
+                {
+                    <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-area="Admin" asp-controller="Users" asp-action="Index">
+                        <i class="bi bi-person-badge fs-5" aria-hidden="true"></i>
+                        <span class="flex-grow-1">Mời quản lý và dược sĩ</span>
+                        <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                    </a>
+                }
+                <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-controller="Account" asp-action="Manage">
+                    <i class="bi bi-person-circle fs-5" aria-hidden="true"></i>
+                    <span class="flex-grow-1">Tài khoản của tôi</span>
+                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </a>
+            </div>
+        </section>
+    </div>
+</div>

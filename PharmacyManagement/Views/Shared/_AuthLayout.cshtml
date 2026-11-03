@@ -1,0 +1,35 @@
+﻿@{
+    var title = ViewData["Title"] as string;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(string.IsNullOrEmpty(title) ? PharmacyInfo.Value.Name : title + " · " + PharmacyInfo.Value.Name)</title>
+    <partial name="_Styles" />
+</head>
+<body class="pm-app">
+    <div class="pm-auth">
+        <div class="pm-brand mb-3" aria-hidden="true">
+            <span class="pm-avatar"><i class="bi bi-capsule"></i></span>
+            <span>
+                <span class="pm-brand-name d-block">@PharmacyInfo.Value.Name</span>
+                <span class="pm-brand-sub d-block">Hệ thống quản lý</span>
+            </span>
+        </div>
+        <main id="main" class="pm-auth-card">
+            @RenderBody()
+        </main>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form method="post" asp-area="" asp-controller="Account" asp-action="Logout" class="mt-3">
+                <button type="submit" class="btn btn-link text-muted-pm">Đăng xuất</button>
+            </form>
+        }
+    </div>
+    <partial name="_Toasts" />
+    <partial name="_Scripts" />
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

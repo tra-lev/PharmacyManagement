@@ -1,0 +1,12 @@
+﻿@model (int Current, string[] Labels)
+@* Thanh bước cho luồng kích hoạt / đăng nhập lần đầu. Current bắt đầu từ 1. *@
+<ol class="pm-steps" aria-label="Các bước">
+    @for (var i = 0; i < Model.Labels.Length; i++)
+    {
+        var n = i + 1;
+        var css = n < Model.Current ? "done" : n == Model.Current ? "current" : "";
+        <li class="@css" aria-current="@(n == Model.Current ? "step" : null)">
+            <span class="dot" aria-hidden="true">@(n < Model.Current ? "✓" : n.ToString())</span>@Model.Labels[i]
+        </li>
+    }
+</ol>

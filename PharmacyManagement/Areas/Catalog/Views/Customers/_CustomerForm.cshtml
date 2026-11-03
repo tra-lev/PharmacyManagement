@@ -1,0 +1,123 @@
+﻿@model CustomerFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+}
+
+<form asp-action="@action" asp-route-id="@Model.CustomerId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+
+    @* ---------------- 1. Thông tin khách hàng ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-general">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+            <h2 id="sec-general" class="pm-h2">Thông tin khách hàng</h2>
+            <span class="small text-muted-pm">Mã khách hàng: <strong class="text-reset">@Model.CustomerCode</strong>@(Model.IsEdit ? "" : " (dự kiến, tự sinh khi lưu)")</span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="FullName" class="form-label"><span>Họ tên</span> <span class="req">*</span></label>
+                <input asp-for="FullName" class="form-control" autocomplete="off" />
+                <span asp-validation-for="FullName" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Phone" class="form-control" type="tel" inputmode="tel" autocomplete="off" placeholder="0912345678" />
+                <span asp-validation-for="Phone" class="field-validation-error"></span>
+                <div class="form-text">Quầy bán tìm khách theo số này; hai khách đang hoạt động không dùng chung một số.</div>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="DateOfBirth" class="form-label">Ngày sinh <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="DateOfBirth" type="date" class="form-control" min="@Model.MinBirthDate" max="@Model.MaxBirthDate" />
+                <span asp-validation-for="DateOfBirth" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Gender" class="form-label">Giới tính <span class="opt">(không bắt buộc)</span></label>
+                <select asp-for="Gender" class="form-select">
+                    <option value="">— Không ghi —</option>
+                    @foreach (var (value, name) in GenderText.Options)
+                    {
+                        <option value="@value">@name</option>
+                    }
+                </select>
+                <span asp-validation-for="Gender" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="Email" class="form-label">Email <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Email" class="form-control" type="email" autocomplete="off" />
+                <span asp-validation-for="Email" class="field-validation-error"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Address" class="form-label">Địa chỉ <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Address" class="form-control" autocomplete="off" />
+                <span asp-validation-for="Address" class="field-validation-error"></span>
+            </div>
+        </div>
+    </section>
+
+    @* ---------------- 2. Sức khỏe: bệnh nền (DEC-08) + dị ứng (3.1.3.3) ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-health">
+        <h2 id="sec-health" class="pm-h2 mb-1">Lưu ý sức khỏe</h2>
+        <p class="small text-muted-pm mb-3">Dùng để cảnh báo khi bán: thuốc có hoạt chất khách dị ứng, thuốc chống chỉ định với bệnh nền. Dược sĩ vẫn là người quyết định.</p>
+
+        <div class="mb-4">
+            <label asp-for="ChronicConditions" class="form-label">Bệnh nền <span class="opt">(không bắt buộc)</span></label>
+            <textarea asp-for="ChronicConditions" class="form-control" rows="2" maxlength="500" placeholder="Tăng huyết áp; Đái tháo đường type 2"></textarea>
+            <span asp-validation-for="ChronicConditions" class="field-validation-error"></span>
+            <div class="form-text">Mỗi bệnh cách nhau dấu chấm phẩy (;) hoặc xuống dòng. Ghi đúng tên bệnh để hệ thống so với từ khóa chống chỉ định của thuốc.</div>
+        </div>
+
+        <h3 class="pm-h3 mb-1">Dị ứng hoạt chất</h3>
+        <p class="small text-muted-pm mb-2">Chọn hoạt chất từ danh sách gợi ý (danh mục hoạt chất của nhà thuốc). Chưa có trong danh sách thì báo người quản lý thêm khi khai báo thuốc.</p>
+        <datalist id="ingredient-names">
+            @foreach (var n in Model.IngredientNames)
+            {
+                <option value="@n"></option>
+            }
+        </datalist>
+        <div class="pm-lines" data-pm-repeater="allergies" data-pm-next="@Model.Allergies.Count">
+            <div class="pm-line pm-line-head" aria-hidden="true">
+                <span>Hoạt chất</span><span>Phản ứng đã gặp</span><span></span>
+            </div>
+            @for (var i = 0; i < Model.Allergies.Count; i++)
+            {
+                <div class="pm-line" data-pm-row>
+                    <input type="hidden" name="Allergies.Index" value="@i" />
+                    <input type="text" name="Allergies[@i].IngredientName" value="@Model.Allergies[i].IngredientName" class="form-control" list="ingredient-names" maxlength="200" aria-label="Hoạt chất gây dị ứng" autocomplete="off" />
+                    <input type="text" name="Allergies[@i].Reaction" value="@Model.Allergies[i].Reaction" class="form-control" maxlength="500" aria-label="Phản ứng đã gặp" placeholder="Nổi mề đay, khó thở…" autocomplete="off" />
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng dị ứng"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            }
+            <template data-pm-template="allergies">
+                <div class="pm-line" data-pm-row>
+                    <input type="hidden" name="Allergies.Index" value="__i__" />
+                    <input type="text" name="Allergies[__i__].IngredientName" class="form-control" list="ingredient-names" maxlength="200" aria-label="Hoạt chất gây dị ứng" autocomplete="off" />
+                    <input type="text" name="Allergies[__i__].Reaction" class="form-control" maxlength="500" aria-label="Phản ứng đã gặp" placeholder="Nổi mề đay, khó thở…" autocomplete="off" />
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng dị ứng"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </template>
+        </div>
+        <span asp-validation-for="Allergies" class="field-validation-error"></span>
+        <button type="button" class="btn btn-sm btn-outline-secondary mt-2 d-block" data-pm-add="allergies"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm dị ứng</button>
+    </section>
+
+    @* ---------------- 3. Ghi chú ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-notes">
+        <h2 id="sec-notes" class="pm-h2 mb-2">Ghi chú</h2>
+        <label asp-for="Notes" class="visually-hidden">Ghi chú về khách hàng</label>
+        <textarea asp-for="Notes" class="form-control" rows="3" maxlength="1000"></textarea>
+        <span asp-validation-for="Notes" class="field-validation-error"></span>
+    </section>
+
+    <div class="pm-form-actions">
+        <button type="submit" class="btn btn-primary">@(Model.IsEdit ? "Lưu thay đổi" : "Thêm khách hàng")</button>
+        @if (Model.IsEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.CustomerId">Hủy</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary" asp-action="Index">Hủy</a>
+        }
+    </div>
+</form>

@@ -1,0 +1,55 @@
+﻿@model VerifyEmailViewModel
+@{
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Xác minh email";
+}
+<partial name="_Steps" model="@((2, new[] { "Hồ sơ & mật khẩu", "Xác minh email", "Bắt đầu" }))" />
+<div>
+    <h1>Xác minh email</h1>
+    <p class="text-muted-pm mb-0">
+        Email <strong class="text-break">@Model.Email</strong> dùng để đăng nhập và khôi phục mật khẩu.
+        Các chức năng quản trị chỉ mở sau khi xác minh.
+    </p>
+</div>
+
+@if (!Model.EmailConfigured)
+{
+    <div class="pm-alert bad" role="alert">
+        Hệ thống chưa cấu hình tài khoản gửi email nên chưa gửi được mã.
+        Người cài đặt cần đặt <code>Email:SenderAddress</code> và <code>Email:AppPassword</code> trong User Secrets (xem README), rồi chạy lại ứng dụng.
+    </div>
+}
+else if (!Model.CodeSent)
+{
+    <form asp-action="SendVerification" method="post" class="d-flex flex-column gap-3">
+        <p class="mb-0">Bấm nút dưới đây, hệ thống gửi mã 6 số tới email trên. Mã có hiệu lực 15 phút.</p>
+        <button type="submit" class="btn btn-primary btn-lg w-100">Gửi mã xác minh</button>
+    </form>
+}
+else
+{
+    <form asp-action="VerifyEmail" method="post" class="d-flex flex-column gap-3">
+        <div asp-validation-summary="ModelOnly" class="pm-alert bad" role="alert"></div>
+        <div>
+            <label asp-for="Code" class="form-label"></label>
+            <input asp-for="Code" class="form-control pm-code" data-pm-lazy inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" autofocus />
+            <span asp-validation-for="Code" class="field-validation-error"></span>
+            @if (!string.IsNullOrEmpty(Model.ExpiresAtText))
+            {
+                <div class="form-text">Mã hết hạn lúc @Model.ExpiresAtText.</div>
+            }
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100">Xác minh</button>
+    </form>
+    <form asp-action="SendVerification" method="post" class="small text-muted-pm">
+        Chưa nhận được? Kiểm tra mục Spam, hoặc
+        <button type="submit" class="btn btn-link small align-baseline">gửi mã mới</button> (sau 60 giây).
+    </form>
+}
+
+@if (!User.HasClaim(AppClaimTypes.MustChangePassword, "true"))
+{
+    <a href="/" class="small">Để sau, vào trang tổng quan</a>
+}
+
+@section Scripts { <partial name="_FormValidation" /> }

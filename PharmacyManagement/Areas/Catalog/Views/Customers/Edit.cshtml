@@ -1,0 +1,18 @@
+﻿@model CustomerFormViewModel
+@{
+    ViewData["Title"] = "Sửa hồ sơ " + Model.CustomerCode;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Khách hàng</a> / <a asp-action="Details" asp-route-id="@Model.CustomerId">@Model.CustomerCode</a> / Sửa</p>
+        <h1 class="pm-title">Sửa hồ sơ khách hàng</h1>
+        <p class="pm-subtitle">@Model.CustomerCode · @Model.FullName</p>
+    </div>
+</div>
+
+<partial name="_CustomerForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+}

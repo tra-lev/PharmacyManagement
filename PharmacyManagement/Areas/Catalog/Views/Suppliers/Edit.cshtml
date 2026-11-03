@@ -1,0 +1,17 @@
+﻿@model SupplierFormViewModel
+@{
+    ViewData["Title"] = "Sửa " + Model.SupplierName;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Nhà cung cấp</a> / <a asp-action="Details" asp-route-id="@Model.SupplierId">@Model.SupplierCode</a> / Sửa</p>
+        <h1 class="pm-title">Sửa thông tin nhà cung cấp</h1>
+        <p class="pm-subtitle">@Model.SupplierCode · @Model.SupplierName</p>
+    </div>
+</div>
+
+<partial name="_SupplierForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+}

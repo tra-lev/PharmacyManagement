@@ -1,0 +1,15 @@
+﻿@using System.Security.Claims
+@using PharmacyManagement
+@using PharmacyManagement.Authorization
+@using PharmacyManagement.Helpers
+@using PharmacyManagement.Models
+@using PharmacyManagement.Models.ViewModels
+@using PharmacyManagement.Models.ViewModels.Account
+@using PharmacyManagement.Models.ViewModels.Admin
+@using PharmacyManagement.ViewComponents
+@using PharmacyManagement.Configuration
+@using Microsoft.Extensions.Options
+@* Tên nhà thuốc lấy từ appsettings.json (mục Pharmacy:Name) *@
+@inject IOptions<PharmacyOptions> PharmacyInfo
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@addTagHelper *, PharmacyManagement

@@ -1,0 +1,125 @@
+﻿@model CustomerListViewModel
+@{
+    ViewData["Title"] = "Khách hàng";
+    var f = Model.Filter;
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.Status, f.Health, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Bán hàng</p>
+        <h1 class="pm-title">Khách hàng</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@Model.Total.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) khách hàng</span> · tìm theo họ tên, mã khách hàng hoặc số điện thoại; gõ không dấu cũng được.</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm khách hàng</a>
+</div>
+
+<form method="get" asp-action="Index" class="pm-card pm-filter mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm khách hàng</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Họ tên, mã khách hàng, số điện thoại…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="health" class="visually-hidden">Lưu ý sức khỏe</label>
+        <select id="health" name="Health" class="form-select">
+            <!option value="" selected="@(f.Health is null)">Tất cả khách</!option>
+            <!option value="allergy" selected="@(f.Health == "allergy")">Có dị ứng</!option>
+            <!option value="chronic" selected="@(f.Health == "chronic")">Có bệnh nền</!option>
+        </select>
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="active" selected="@(f.Status == "active")">Đang hoạt động</!option>
+            <!option value="inactive" selected="@(f.Status == "inactive")">Đã ngừng</!option>
+            <!option value="all" selected="@(f.Status == "all")">Tất cả</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (f.Q is not null || f.Health is not null || f.Status != "active")
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Danh sách khách hàng" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-people" aria-hidden="true"></i>
+            @(f.Q is null ? "Chưa có khách hàng nào khớp bộ lọc." : $"Không tìm thấy khách hàng khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Khách hàng</th>
+                        <th scope="col">Số điện thoại</th>
+                        <th scope="col">Tuổi · giới tính</th>
+                        <th scope="col">Lưu ý khi bán</th>
+                        <th scope="col"><span class="visually-hidden">Trạng thái</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        var info = string.Join(" · ", new[] { r.Age is null ? null : r.Age + " tuổi", GenderText.Of(r.Gender) }.Where(x => x is not null));
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link" asp-action="Details" asp-route-id="@r.CustomerId">@r.FullName</a>
+                                <div class="small text-muted-pm">@r.Code</div>
+                            </td>
+                            <td class="small num text-nowrap">@(ContactRules.DisplayPhone(r.Phone) ?? "—")</td>
+                            <td class="small">@(info.Length == 0 ? "—" : info)</td>
+                            <td>
+                                @if (r.AllergyCount > 0)
+                                {
+                                    <span class="pm-badge bad">Dị ứng @r.AllergyCount hoạt chất</span>
+                                }
+                                @if (r.HasChronicConditions)
+                                {
+                                    <span class="pm-badge warn">Bệnh nền</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!r.IsActive)
+                                {
+                                    <span class="pm-badge mute">Đã ngừng</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}
