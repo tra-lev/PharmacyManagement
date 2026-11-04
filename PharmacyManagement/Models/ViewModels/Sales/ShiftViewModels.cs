@@ -122,6 +122,11 @@ public sealed class MyShiftViewModel
     public bool CanClose { get; set; }
 }
 
+/// <summary>Một hóa đơn lập trong ca. <paramref name="Methods"/>: hình thức đã thu (Payments thành công).</summary>
+public sealed record ShiftInvoiceRow(
+    int InvoiceId, string Code, DateTime InvoiceDate, string? CustomerName, string? PrescriptionCode,
+    decimal TotalAmount, byte Status, IReadOnlyList<byte> Methods);
+
 /// <summary>Chi tiết / biên bản một ca.</summary>
 public sealed class ShiftDetailsViewModel
 {
@@ -145,6 +150,9 @@ public sealed class ShiftDetailsViewModel
 
     /// <summary>Ca của chính người đang xem (false = Owner/Manager xem ca của người khác — chỉ xem).</summary>
     public bool IsOwnShift { get; init; }
+
+    /// <summary>Mọi hóa đơn lập trong ca, mới nhất trước.</summary>
+    public IReadOnlyList<ShiftInvoiceRow> Invoices { get; init; } = Array.Empty<ShiftInvoiceRow>();
 }
 
 // ------------------------------------------------------------------ Ca toàn nhà thuốc (F4.1.1)

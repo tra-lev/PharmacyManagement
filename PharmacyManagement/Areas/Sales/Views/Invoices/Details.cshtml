@@ -18,7 +18,14 @@
         <h1 class="pm-title">Hóa đơn @Model.Code</h1>
         <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
             <span class="pm-badge @InvoiceStatusText.Tone(Model.Status)">@InvoiceStatusText.Of(Model.Status)</span>
-            <span class="pm-badge mute">@(Model.PrescriptionCode is null ? "Bán lẻ" : "Bán theo đơn " + Model.PrescriptionCode)</span>
+            @if (Model.PrescriptionId is null)
+            {
+                <span class="pm-badge mute">Bán lẻ</span>
+            }
+            else
+            {
+                <a class="pm-badge mute" asp-controller="Prescriptions" asp-action="Details" asp-route-id="@Model.PrescriptionId">Bán theo đơn @Model.PrescriptionCode</a>
+            }
         </div>
     </div>
     <div class="d-flex flex-wrap gap-2">

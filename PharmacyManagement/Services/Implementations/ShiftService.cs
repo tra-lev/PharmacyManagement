@@ -101,6 +101,25 @@ public sealed class ShiftService : IShiftService
             .FirstOrDefaultAsync(ct);
 
         var live = await ComputeTotalsAsync(shiftId, s.OpeningCash, ct);
+
+        // Hóa đơn của ca (chỉ đọc) + hình thức đã thu
+        var invoices = await _db.SalesInvoices.AsNoTracking()
+            .Where(i => i.ShiftId == shiftId)
+            .OrderByDescending(i => i.InvoiceDate).ThenByDescending(i => i.InvoiceId)
+            .Select(i => new
+            {
+                i.InvoiceId, i.InvoiceCode, i.InvoiceDate, i.TotalAmount, i.Status,
+                CustomerName = i.Customer != null ? i.Customer.FullName : null,
+                PrescriptionCode = i.Prescription != null ? i.Prescription.PrescriptionCode : null
+            })
+            .ToListAsync(ct);
+        var invoiceIds = invoices.Select(i => i.InvoiceId).ToList();
+        var methods = (await _db.Payments.AsNoTracking()
+                .Where(p => invoiceIds.Contains(p.InvoiceId) && p.Status == (byte)PaymentStatus.Succeeded)
+                .Select(p => new { p.InvoiceId, p.PaymentMethod })
+                .ToListAsync(ct))
+            .GroupBy(p => p.InvoiceId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<byte>)g.Select(p => p.PaymentMethod).Distinct().OrderBy(m => m).ToList());
         // Ca đã chốt: tiền lấy từ biên bản (số đã chốt, không tính lại); số hóa đơn đếm từ CSDL
         var totals = closing is null
             ? live
@@ -122,7 +141,9 @@ public sealed class ShiftService : IShiftService
             ActualCash = closing?.ActualCash,
             Difference = closing is null ? null : closing.ActualCash - closing.ExpectedCash,
             ClosingNotes = closing?.Notes,
-            IsOwnShift = ownId == s.EmployeeId
+            IsOwnShift = ownId == s.EmployeeId,
+            Invoices = invoices.Select(i => new ShiftInvoiceRow(i.InvoiceId, i.InvoiceCode, i.InvoiceDate, i.CustomerName, i.PrescriptionCode,
+                i.TotalAmount, i.Status, methods.TryGetValue(i.InvoiceId, out var m) ? m : Array.Empty<byte>())).ToList()
         };
     }
 

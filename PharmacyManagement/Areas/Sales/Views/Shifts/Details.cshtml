@@ -4,6 +4,9 @@
     var t = Model.Totals;
     var vi = CultureInfo.GetCultureInfo("vi-VN");
     var closed = Model.Status == (byte)ShiftStatus.Closed;
+    var paid = Model.Invoices.Where(i => i.Status == (byte)InvoiceStatus.Paid).ToList();
+    var pending = Model.Invoices.Count(i => i.Status == (byte)InvoiceStatus.PendingPayment);
+    var cancelled = Model.Invoices.Count(i => i.Status == (byte)InvoiceStatus.Cancelled);
 }
 
 <div class="pm-page-head">
@@ -100,13 +103,69 @@
                 }
             </ul>
         </section>
-
-        <section class="pm-card" aria-labelledby="d-invoices">
-            <h2 id="d-invoices" class="pm-h2 mb-3">Hóa đơn trong ca</h2>
-            <dl class="pm-dl">
-                <dt>Đã thanh toán</dt><dd class="num">@t.PaidInvoiceCount.ToString("N0", vi)</dd>
-                <dt>Chờ thanh toán</dt><dd class="num">@t.PendingInvoiceCount.ToString("N0", vi)</dd>
-            </dl>
-        </section>
     </div>
 </div>
+
+@* ---------------- Hóa đơn lập trong ca ---------------- *@
+<section class="pm-card mt-4" aria-labelledby="d-invoices" data-pm-shift-invoices>
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+        <div>
+            <h2 id="d-invoices" class="pm-h2 mb-1">Hóa đơn trong ca</h2>
+            <p class="small text-muted-pm mb-0">
+                Đã thanh toán @paid.Count.ToString("N0", vi) hóa đơn · @Format.Money(paid.Sum(i => i.TotalAmount))
+                · Chờ thanh toán @pending.ToString("N0", vi) · Đã hủy @cancelled.ToString("N0", vi)
+            </p>
+        </div>
+        @if (Model.Invoices.Count > 0)
+        {
+            <div class="pm-seg" role="radiogroup" aria-label="Lọc theo trạng thái">
+                <label><input type="radio" name="inv-filter" value="" checked /> Tất cả</label>
+                <label><input type="radio" name="inv-filter" value="@((byte)InvoiceStatus.Paid)" /> Đã thanh toán</label>
+                <label><input type="radio" name="inv-filter" value="@((byte)InvoiceStatus.PendingPayment)" /> Chờ thanh toán</label>
+                <label><input type="radio" name="inv-filter" value="@((byte)InvoiceStatus.Cancelled)" /> Đã hủy</label>
+            </div>
+        }
+    </div>
+    @if (Model.Invoices.Count == 0)
+    {
+        <div class="pm-empty"><i class="bi bi-receipt" aria-hidden="true"></i> Ca này chưa có hóa đơn nào.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Hóa đơn</th>
+                        <th scope="col">Khách hàng</th>
+                        <th scope="col">Thu bằng</th>
+                        <th scope="col" class="text-end">Tổng tiền</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in Model.Invoices)
+                    {
+                        <tr class="pm-row-link" data-pm-status="@i.Status">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-controller="Invoices" asp-action="Details" asp-route-id="@i.InvoiceId">@i.Code</a>
+                                <div class="small text-muted-pm num">@i.InvoiceDate.ToString("HH:mm", vi) · @(i.PrescriptionCode is null ? "Bán lẻ" : "Theo đơn " + i.PrescriptionCode)</div>
+                            </td>
+                            <td>@(i.CustomerName ?? "Khách lẻ")</td>
+                            <td class="small">@(i.Methods.Count == 0 ? "—" : string.Join(", ", i.Methods.Select(PaymentMethodText.Of)))</td>
+                            <td class="text-end num text-nowrap">@Format.Money(i.TotalAmount)</td>
+                            <td><span class="pm-badge @InvoiceStatusText.Tone(i.Status)">@InvoiceStatusText.Of(i.Status)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div hidden data-pm-shift-none>
+            <div class="pm-empty"><i class="bi bi-receipt" aria-hidden="true"></i> Không có hóa đơn nào ở trạng thái này.</div>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/shift-details.js" asp-append-version="true"></script>
+}

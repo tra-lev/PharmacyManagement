@@ -18,11 +18,13 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
 
     private readonly PharmacyDbContext _db;
     private readonly IAuditLogService _audit;
+    private readonly ISafetyCheckService _safety;
 
-    public SalesInvoiceService(PharmacyDbContext db, IAuditLogService audit)
+    public SalesInvoiceService(PharmacyDbContext db, IAuditLogService audit, ISafetyCheckService safety)
     {
         _db = db;
         _audit = audit;
+        _safety = safety;
     }
 
     private static DateOnly Today => DateOnly.FromDateTime(DateTime.Now);
@@ -35,6 +37,33 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         form.Lines.Add(new SaleLineForm());
         await PrepareFormAsync(form, userId, ct);
         return form;
+    }
+
+    public async Task<OperationResult<SaleFormViewModel>> NewFromPrescriptionAsync(int prescriptionId, string userId, CancellationToken ct = default)
+    {
+        var rx = await RxAsync(prescriptionId, ct);
+        if (rx is null) return OperationResult<SaleFormViewModel>.Fail("Không tìm thấy đơn thuốc.");
+        var error = await RxErrorAsync(rx, null, ct);
+        if (error is not null) return OperationResult<SaleFormViewModel>.Fail(error);
+
+        var lines = await _db.PrescriptionDetails.AsNoTracking()
+            .Where(d => d.PrescriptionId == prescriptionId)
+            .OrderBy(d => d.PrescriptionDetailId)
+            .Select(d => new { d.MedicineId, d.UnitId, d.PrescribedQuantity })
+            .ToListAsync(ct);
+        var form = new SaleFormViewModel
+        {
+            PrescriptionId = prescriptionId,
+            CustomerId = rx.CustomerId,
+            Lines = lines.Select(l => new SaleLineForm
+            {
+                MedicineId = l.MedicineId,
+                UnitId = l.UnitId,
+                Quantity = (int)Math.Min(decimal.Truncate(l.PrescribedQuantity), SaleFormViewModel.MaxQuantity)
+            }).ToList()
+        };
+        await PrepareFormAsync(form, userId, ct);
+        return OperationResult<SaleFormViewModel>.Ok(form);
     }
 
     public async Task PrepareFormAsync(SaleFormViewModel form, string userId, CancellationToken ct = default)
@@ -56,14 +85,34 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         form.PricePolicyName = policy?.Name;
         form.MaxDiscountPercent = policy?.MaxPercent ?? 0;
 
-        form.MedicineOptions = await LoadMedicinesAsync(ct);
+        RxContext? rx = null;
+        if (form.PrescriptionId is not null)
+        {
+            rx = await RxAsync(form.PrescriptionId.Value, ct);
+            if (rx is not null)
+            {
+                form.CustomerId = rx.CustomerId;
+                form.Prescription = new SalePrescriptionInfo(rx.PrescriptionId, rx.Code, rx.CustomerName, rx.DoctorName, rx.ClinicName,
+                    rx.Date, rx.Date.AddDays(PrescriptionRules.ValidDays));
+            }
+        }
+        form.MedicineOptions = await LoadMedicinesAsync(rx, ct);
         form.CustomerOptions = await LoadCustomersAsync(ct);
         if (form.Lines.Count == 0) form.Lines.Add(new SaleLineForm());
 
+        if (form.PrescriptionId is not null)
+        {
+            // Bán theo đơn: cảnh báo an toàn đã được dược sĩ xem khi lưu đơn (3.2.2.3)
+            form.Warnings = Array.Empty<SafetyWarning>();
+            form.ShownWarningsKey = null;
+            form.AcknowledgeWarnings = false;
+            return;
+        }
+
         var medicineIds = form.Lines.Where(l => l.MedicineId is not null).Select(l => l.MedicineId!.Value).Distinct().ToList();
-        var warnings = await SafetyWarningsAsync(form.CustomerId, medicineIds, ct);
+        var warnings = await _safety.CheckAsync(form.CustomerId, medicineIds, false, null, ct);
         form.Warnings = warnings;
-        form.ShownWarningsKey = warnings.Count == 0 ? null : WarningsKeyOf(warnings);
+        form.ShownWarningsKey = warnings.Count == 0 ? null : SafetyCheckService.KeyOf(warnings);
         // Luôn bắt xác nhận lại khi hiện lại form: người dùng phải tích sau khi đã thấy đúng bộ cảnh báo này
         form.AcknowledgeWarnings = false;
     }
@@ -78,7 +127,16 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         if (seller.ShiftId is null)
             return OperationResult<int>.Fail("Bạn chưa mở ca. Mở ca ở trang Ca làm việc rồi bán hàng.");
 
-        var built = await BuildDraftAsync(form, canExceedDiscountLimit, ct);
+        RxContext? rx = null;
+        if (form.PrescriptionId is not null)
+        {
+            rx = await RxAsync(form.PrescriptionId.Value, ct);
+            if (rx is null) return OperationResult<int>.Fail("Không tìm thấy đơn thuốc.");
+            var rxError = await RxErrorAsync(rx, null, ct);
+            if (rxError is not null) return OperationResult<int>.Fail(rxError);
+        }
+
+        var built = await BuildDraftAsync(form, canExceedDiscountLimit, rx, ct);
         if (!built.Succeeded) return OperationResult<int>.Fail(built.Message!, built.Field);
         var draft = built.Value!;
 
@@ -88,7 +146,8 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
             var invoice = new SalesInvoice
             {
                 InvoiceCode = await NextCodeAsync(DateTime.Now, ct),
-                CustomerId = form.CustomerId,
+                CustomerId = rx?.CustomerId ?? form.CustomerId,
+                PrescriptionId = rx?.PrescriptionId,
                 EmployeeId = seller.EmployeeId.Value,
                 ShiftId = seller.ShiftId.Value,
                 InvoiceDate = DateTime.Now,
@@ -101,7 +160,7 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
             await _audit.WriteAsync("INVOICE_CREATE", "SalesInvoices", invoice.InvoiceId.ToString(CultureInfo.InvariantCulture), null,
                 new
                 {
-                    invoice.InvoiceCode, invoice.ShiftId, invoice.CustomerId, invoice.SubTotal, invoice.DiscountAmount, invoice.TotalAmount,
+                    invoice.InvoiceCode, invoice.ShiftId, invoice.CustomerId, invoice.PrescriptionId, invoice.SubTotal, invoice.DiscountAmount, invoice.TotalAmount,
                     ExtraDiscountPercent = draft.ExtraPercent, ExtraDiscount = draft.Extra,
                     Lines = draft.Details.Count, SafetyWarnings = draft.WarningCount
                 }, userId, ct);
@@ -125,7 +184,7 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         if (error is not null) return OperationResult<SaleFormViewModel>.Fail(error);
 
         var invoice = await _db.SalesInvoices.AsNoTracking().Where(x => x.InvoiceId == invoiceId)
-            .Select(x => new { x.CustomerId, x.Notes }).FirstAsync(ct);
+            .Select(x => new { x.CustomerId, x.PrescriptionId, x.Notes }).FirstAsync(ct);
         var lines = await _db.SalesInvoiceDetails.AsNoTracking().Where(d => d.InvoiceId == invoiceId)
             .OrderBy(d => d.InvoiceDetailId)
             .Select(d => new { d.MedicineId, d.UnitId, d.Quantity })
@@ -134,6 +193,7 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         var form = new SaleFormViewModel
         {
             InvoiceId = invoiceId,
+            PrescriptionId = invoice.PrescriptionId,
             CustomerId = invoice.CustomerId,
             Lines = lines.Select(l => new SaleLineForm { MedicineId = l.MedicineId, UnitId = l.UnitId, Quantity = (int)decimal.Truncate(l.Quantity) }).ToList()
         };
@@ -163,7 +223,19 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         var error = await NotEditableReasonAsync(invoiceId, seller, ct);
         if (error is not null) return OperationResult.Fail(error);
 
-        var built = await BuildDraftAsync(form, canExceedDiscountLimit, ct);
+        // Hóa đơn theo đơn giữ nguyên đơn thuốc đã gắn (không đọc từ form)
+        form.PrescriptionId = await _db.SalesInvoices.AsNoTracking().Where(x => x.InvoiceId == invoiceId)
+            .Select(x => x.PrescriptionId).FirstOrDefaultAsync(ct);
+        RxContext? rx = null;
+        if (form.PrescriptionId is not null)
+        {
+            rx = await RxAsync(form.PrescriptionId.Value, ct);
+            if (rx is null) return OperationResult.Fail("Không tìm thấy đơn thuốc.");
+            var rxError = await RxErrorAsync(rx, invoiceId, ct);
+            if (rxError is not null) return OperationResult.Fail(rxError);
+        }
+
+        var built = await BuildDraftAsync(form, canExceedDiscountLimit, rx, ct);
         if (!built.Succeeded) return OperationResult.Fail(built.Message!, built.Field);
         var draft = built.Value!;
 
@@ -178,7 +250,7 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
             // Hóa đơn chờ thanh toán chưa thu tiền, chưa xuất kho: thay toàn bộ dòng thuốc
             _db.SalesInvoiceDetails.RemoveRange(invoice.SalesInvoiceDetails);
             invoice.SalesInvoiceDetails.Clear();
-            invoice.CustomerId = form.CustomerId;
+            invoice.CustomerId = rx?.CustomerId ?? form.CustomerId;
             ApplyDraft(invoice, draft);
             await _db.SaveChangesAsync(ct); // RowVersion: hóa đơn bị đổi ở nơi khác → DbUpdateConcurrencyException
 
@@ -238,15 +310,16 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
                 new { invoice.InvoiceCode, invoice.SubTotal, Promotion = draft.PromoTotal, ExtraPercent = draft.ExtraPercent, Extra = draft.Extra, MaxDiscountPercent = draft.MaxPercent }, userId, ct)
             : Task.CompletedTask;
 
-    private async Task<OperationResult<SaleDraft>> BuildDraftAsync(SaleFormViewModel form, bool canExceedDiscountLimit, CancellationToken ct)
+    private async Task<OperationResult<SaleDraft>> BuildDraftAsync(SaleFormViewModel form, bool canExceedDiscountLimit, RxContext? rx, CancellationToken ct)
     {
+        if (rx is not null) form.CustomerId = rx.CustomerId;
         // ---- Dòng thuốc (3.1.1, 3.1.2) ----
         var lines = form.Lines.Where(l => l.MedicineId is not null || l.UnitId is not null || l.Quantity is not null).ToList();
         if (lines.Count == 0) return OperationResult<SaleDraft>.Fail("Thêm ít nhất một thuốc vào hóa đơn.");
         if (lines.Count > SaleFormViewModel.MaxLines)
             return OperationResult<SaleDraft>.Fail($"Một hóa đơn tối đa {SaleFormViewModel.MaxLines} dòng thuốc.");
 
-        var options = (await LoadMedicinesAsync(ct)).ToDictionary(m => m.MedicineId);
+        var options = (await LoadMedicinesAsync(rx, ct)).ToDictionary(m => m.MedicineId);
         var details = new List<SalesInvoiceDetail>();
         var requestedBase = new Dictionary<int, decimal>();
         for (var i = 0; i < lines.Count; i++)
@@ -258,8 +331,15 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
             {
                 var id = l.MedicineId.Value;
                 var info = await _db.Medicines.AsNoTracking().Where(m => m.MedicineId == id)
-                    .Select(m => new { m.MedicineName, m.IsPrescription, m.IsActive }).FirstOrDefaultAsync(ct);
+                    .Select(m => new { m.MedicineName, m.IsPrescription, m.IsControlledDrug, m.IsActive }).FirstOrDefaultAsync(ct);
                 if (info is null) return OperationResult<SaleDraft>.Fail($"{label}: không tìm thấy thuốc.");
+                if (rx is not null)
+                {
+                    if (!info.IsActive) return OperationResult<SaleDraft>.Fail($"{label}: {info.MedicineName} đã ngừng kinh doanh.");
+                    if (info.IsControlledDrug)
+                        return OperationResult<SaleDraft>.Fail($"{label}: {info.MedicineName} là thuốc kiểm soát đặc biệt, chưa bán được trên hệ thống.");
+                    return OperationResult<SaleDraft>.Fail($"{label}: {info.MedicineName} không có trong đơn thuốc {rx.Code}.");
+                }
                 if (info.IsPrescription)
                     return OperationResult<SaleDraft>.Fail($"{label}: {info.MedicineName} là thuốc kê đơn, chỉ bán theo đơn thuốc.");
                 return OperationResult<SaleDraft>.Fail($"{label}: {info.MedicineName} đã ngừng kinh doanh.");
@@ -299,6 +379,9 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
                 return OperationResult<SaleDraft>.Fail(med.AvailableBase <= 0
                     ? $"{med.Label} đã hết hàng."
                     : $"{med.Label}: chỉ còn {Format.Number(med.AvailableBase)} {med.BaseUnitName}, hóa đơn cần {Format.Number(need)} {med.BaseUnitName}.");
+            // 3.2.4: không bán quá số lượng bác sĩ kê (được bán ít hơn)
+            if (rx is not null && rx.Items.TryGetValue(medicineId, out var item) && need > item.Base)
+                return OperationResult<SaleDraft>.Fail($"{med.Label}: đơn kê {item.Text}, không bán quá số lượng kê.");
         }
 
         // ---- 3.3.1 Tổng tiền: khuyến mãi từng dòng + giảm thêm trong giới hạn chính sách giá ----
@@ -344,8 +427,11 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
         }
 
         // ---- 3.1.3 Cảnh báo an toàn: dược sĩ đã xem mới lưu ----
-        var warnings = await SafetyWarningsAsync(form.CustomerId, requestedBase.Keys.ToList(), ct);
-        if (warnings.Count > 0 && (!form.AcknowledgeWarnings || form.WarningsKey != WarningsKeyOf(warnings)))
+        // Bán theo đơn: đã kiểm tra và xác nhận khi lưu đơn (3.2.2.3)
+        var warnings = rx is not null
+            ? new List<SafetyWarning>()
+            : await _safety.CheckAsync(form.CustomerId, requestedBase.Keys.ToList(), false, null, ct);
+        if (warnings.Count > 0 && (!form.AcknowledgeWarnings || form.WarningsKey != SafetyCheckService.KeyOf(warnings)))
             return OperationResult<SaleDraft>.Fail($"Có {warnings.Count} cảnh báo an toàn. Xem cảnh báo, tích “Đã xem cảnh báo, vẫn bán” rồi lưu lại.",
                 nameof(SaleFormViewModel.AcknowledgeWarnings));
 
@@ -441,6 +527,7 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
                 EmployeeName = x.Employee.FullName,
                 x.Shift.ShiftCode, ShiftStatus = x.Shift.Status,
                 PrescriptionCode = x.Prescription != null ? x.Prescription.PrescriptionCode : null,
+                x.PrescriptionId,
                 x.SubTotal, x.DiscountAmount, x.TaxAmount, x.TotalAmount, x.Notes,
                 CancelledByName = x.CancelledByEmployee != null ? x.CancelledByEmployee.FullName : null,
                 x.CancelledAt, x.CancelReason
@@ -509,6 +596,7 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
             EmployeeName = i.EmployeeName,
             ShiftCode = i.ShiftCode,
             PrescriptionCode = i.PrescriptionCode,
+            PrescriptionId = i.PrescriptionId,
             SubTotal = i.SubTotal,
             DiscountAmount = i.DiscountAmount,
             TaxAmount = i.TaxAmount,
@@ -570,21 +658,88 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
     public async Task<SaleCustomerOption?> GetCustomerOptionAsync(int customerId, CancellationToken ct = default)
         => (await LoadCustomersAsync(ct)).FirstOrDefault(c => c.CustomerId == customerId);
 
+    public Task<int?> GetPrescriptionIdAsync(int invoiceId, CancellationToken ct = default)
+        => _db.SalesInvoices.AsNoTracking().Where(x => x.InvoiceId == invoiceId).Select(x => x.PrescriptionId).FirstOrDefaultAsync(ct);
+
+    public async Task<IReadOnlyList<SaleCustomerOption>> GetCustomerOptionsAsync(CancellationToken ct = default)
+        => await LoadCustomersAsync(ct);
+
+    // ================================================================== Đơn thuốc đang bán (3.2.4)
+
+    private sealed record RxItem(decimal Base, string Text);
+
+    private sealed record RxContext(
+        int PrescriptionId, string Code, byte Status, int CustomerId, string CustomerName, string DoctorName, string ClinicName, DateOnly Date,
+        IReadOnlyDictionary<int, RxItem> Items);
+
+    /// <summary>Đơn thuốc + số lượng kê theo đơn vị cơ sở của từng thuốc; null nếu không có.</summary>
+    private async Task<RxContext?> RxAsync(int prescriptionId, CancellationToken ct)
+    {
+        var p = await _db.Prescriptions.AsNoTracking().Where(x => x.PrescriptionId == prescriptionId)
+            .Select(x => new { x.PrescriptionId, x.PrescriptionCode, x.Status, x.CustomerId, CustomerName = x.Customer.FullName, x.DoctorName, x.ClinicName, x.PrescriptionDate })
+            .FirstOrDefaultAsync(ct);
+        if (p is null) return null;
+        var lines = await _db.PrescriptionDetails.AsNoTracking()
+            .Where(d => d.PrescriptionId == prescriptionId)
+            .Select(d => new
+            {
+                d.MedicineId, d.PrescribedQuantity, d.UnitId, UnitName = d.Unit.UnitName, d.Medicine.BaseUnitId, BaseUnitName = d.Medicine.BaseUnit.UnitName,
+                Factor = d.UnitId == d.Medicine.BaseUnitId
+                    ? 1m
+                    : d.Medicine.MedicineUnitConversions.Where(c => c.UnitId == d.UnitId).Select(c => (decimal?)c.ConversionToBase).FirstOrDefault() ?? 1m
+            })
+            .ToListAsync(ct);
+        var items = lines.GroupBy(l => l.MedicineId).ToDictionary(g => g.Key, g =>
+        {
+            var baseQty = g.Sum(l => Math.Round(l.PrescribedQuantity * l.Factor, 3, MidpointRounding.AwayFromZero));
+            var text = string.Join(" + ", g.Select(l => $"{Format.Number(l.PrescribedQuantity)} {l.UnitName}"));
+            if (g.Any(l => l.UnitId != l.BaseUnitId)) text += $" (= {Format.Number(baseQty)} {g.First().BaseUnitName})";
+            return new RxItem(baseQty, text);
+        });
+        return new RxContext(p.PrescriptionId, p.PrescriptionCode, p.Status, p.CustomerId, p.CustomerName, p.DoctorName, p.ClinicName, p.PrescriptionDate, items);
+    }
+
+    /// <summary>null = bán được: đơn Chưa bán, còn hạn mua, chưa có hóa đơn chờ thanh toán khác.</summary>
+    private async Task<string?> RxErrorAsync(RxContext rx, int? exceptInvoiceId, CancellationToken ct)
+    {
+        if (rx.Status != (byte)PrescriptionStatus.Saved)
+            return $"Đơn thuốc {rx.Code} {PrescriptionStatusText.Of(rx.Status).ToLowerInvariant()} nên không bán được.";
+        var validUntil = rx.Date.AddDays(PrescriptionRules.ValidDays);
+        if (Today > validUntil)
+            return $"Đơn thuốc {rx.Code} đã hết hạn mua (đến {validUntil.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)}).";
+        var id = rx.PrescriptionId;
+        var pending = await _db.SalesInvoices.AsNoTracking()
+            .Where(i => i.PrescriptionId == id && i.Status == (byte)InvoiceStatus.PendingPayment && (exceptInvoiceId == null || i.InvoiceId != exceptInvoiceId))
+            .Select(i => i.InvoiceCode).FirstOrDefaultAsync(ct);
+        return pending is null ? null : $"Đơn thuốc {rx.Code} đã có hóa đơn {pending} chờ thanh toán.";
+    }
+
     // ================================================================== Dữ liệu chọn
 
-    /// <summary>Thuốc bán lẻ được: đang kinh doanh, KHÔNG kê đơn; đơn vị + giá hiện hành, tồn khả dụng, khuyến mãi đang hiệu lực.</summary>
-    private async Task<List<SaleMedicineOption>> LoadMedicinesAsync(CancellationToken ct)
+    /// <summary>
+    /// Thuốc bán được: bán lẻ — đang kinh doanh, KHÔNG kê đơn; bán theo đơn — chỉ thuốc trong đơn (kể cả thuốc kê đơn),
+    /// trừ thuốc kiểm soát đặc biệt. Kèm đơn vị + giá hiện hành, tồn khả dụng, khuyến mãi đang hiệu lực.
+    /// </summary>
+    private async Task<List<SaleMedicineOption>> LoadMedicinesAsync(RxContext? rx, CancellationToken ct)
     {
         var today = Today;
         var now = DateTime.Now;
-        var medicines = await _db.Medicines.AsNoTracking()
-            .Where(m => m.IsActive && !m.IsPrescription)
+        var rxIds = rx?.Items.Keys.ToList() ?? new List<int>();
+        var isRx = rx is not null;
+        var medicineQuery = _db.Medicines.AsNoTracking().Where(m => m.IsActive);
+        medicineQuery = isRx
+            ? medicineQuery.Where(m => rxIds.Contains(m.MedicineId) && !m.IsControlledDrug)
+            : medicineQuery.Where(m => !m.IsPrescription);
+        var conversionQuery = _db.MedicineUnitConversions.AsNoTracking().Where(c => c.Medicine.IsActive);
+        conversionQuery = isRx
+            ? conversionQuery.Where(c => rxIds.Contains(c.MedicineId) && !c.Medicine.IsControlledDrug)
+            : conversionQuery.Where(c => !c.Medicine.IsPrescription);
+        var medicines = await medicineQuery
             .OrderBy(m => m.MedicineName).ThenBy(m => m.MedicineCode)
             .Select(m => new { m.MedicineId, m.MedicineCode, m.MedicineName, m.BaseUnitId, BaseUnitName = m.BaseUnit.UnitName, m.DefaultSellingPrice, m.CategoryId })
             .ToListAsync(ct);
 
-        var conversions = (await _db.MedicineUnitConversions.AsNoTracking()
-                .Where(c => c.Medicine.IsActive && !c.Medicine.IsPrescription)
+        var conversions = (await conversionQuery
                 .Select(c => new { c.MedicineId, c.UnitId, c.Unit.UnitName, c.ConversionToBase, c.SellingPrice, c.IsDefaultSaleUnit })
                 .ToListAsync(ct))
             .GroupBy(c => c.MedicineId)
@@ -628,8 +783,10 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
                 .Select(p => new SalePromotionOption(p.PromotionId, p.PromotionName, p.DiscountPercent, p.DiscountAmount))
                 .ToList();
             var label = $"{m.MedicineName} ({m.MedicineCode}) · " + (stock > 0 ? $"còn {stock.ToString("#,##0.###", vi)} {m.BaseUnitName}" : "hết hàng");
+            RxItem? item = null;
+            rx?.Items.TryGetValue(m.MedicineId, out item);
             return new SaleMedicineOption(m.MedicineId, label, m.BaseUnitName, stock, units, promos,
-                keywords.GetValueOrDefault(m.MedicineId, string.Empty));
+                keywords.GetValueOrDefault(m.MedicineId, string.Empty), item?.Base, item?.Text);
         }).ToList();
     }
 
@@ -652,81 +809,6 @@ public sealed class SalesInvoiceService : ISalesInvoiceService
             c.Phone ?? string.Empty,
             allergies.GetValueOrDefault(c.CustomerId))).ToList();
     }
-
-    // ================================================================== 3.1.3 Kiểm tra an toàn (chỉ cảnh báo)
-
-    private async Task<List<SafetyWarning>> SafetyWarningsAsync(int? customerId, IReadOnlyCollection<int> medicineIds, CancellationToken ct)
-    {
-        var warnings = new List<SafetyWarning>();
-        if (medicineIds.Count == 0) return warnings;
-        var ids = medicineIds.ToList();
-
-        var ingredients = await _db.MedicineIngredients.AsNoTracking()
-            .Where(i => ids.Contains(i.MedicineId))
-            .OrderBy(i => i.Medicine.MedicineName).ThenBy(i => i.MedicineId).ThenBy(i => i.IngredientId) // thứ tự cố định: dấu cảnh báo phải ổn định
-            .Select(i => new { i.MedicineId, i.IngredientId, i.Ingredient.IngredientName, i.Medicine.MedicineName })
-            .ToListAsync(ct);
-        if (ingredients.Count == 0) return warnings;
-
-        // Dị ứng của khách (CustomerAllergies) trùng hoạt chất trong hóa đơn
-        if (customerId is not null)
-        {
-            var id = customerId.Value;
-            var allergies = await _db.CustomerAllergies.AsNoTracking()
-                .Where(a => a.CustomerId == id)
-                .OrderBy(a => a.Ingredient.IngredientName).ThenBy(a => a.CustomerAllergyId)
-                .Select(a => new { a.IngredientId, a.Ingredient.IngredientName, a.ReactionDescription })
-                .ToListAsync(ct);
-            foreach (var a in allergies)
-            {
-                var meds = ingredients.Where(i => i.IngredientId == a.IngredientId).Select(i => i.MedicineName).Distinct().ToList();
-                if (meds.Count == 0) continue;
-                warnings.Add(new SafetyWarning("bad",
-                    $"Khách dị ứng {a.IngredientName}{(string.IsNullOrWhiteSpace(a.ReactionDescription) ? "" : " (" + a.ReactionDescription.Trim() + ")")} — có trong {string.Join(", ", meds)}."));
-            }
-        }
-
-        // Tương tác giữa hoạt chất của các thuốc KHÁC NHAU trong hóa đơn (IngredientInteractions, IngredientId1 < IngredientId2)
-        var ingredientIds = ingredients.Select(i => i.IngredientId).Distinct().ToList();
-        if (ingredientIds.Count >= 2)
-        {
-            var interactions = await _db.IngredientInteractions.AsNoTracking()
-                .Where(x => ingredientIds.Contains(x.IngredientId1) && ingredientIds.Contains(x.IngredientId2))
-                .OrderByDescending(x => x.Severity).ThenBy(x => x.InteractionId)
-                .Select(x => new
-                {
-                    x.IngredientId1, x.IngredientId2, x.Severity, x.Description, x.Recommendation,
-                    Name1 = x.IngredientId1Navigation.IngredientName, Name2 = x.IngredientId2Navigation.IngredientName
-                })
-                .ToListAsync(ct);
-            foreach (var x in interactions)
-            {
-                var a = ingredients.Where(i => i.IngredientId == x.IngredientId1).ToList();
-                var b = ingredients.Where(i => i.IngredientId == x.IngredientId2).ToList();
-                var pair = a.SelectMany(ia => b.Where(ib => ib.MedicineId != ia.MedicineId).Select(ib => (A: ia.MedicineName, B: ib.MedicineName))).FirstOrDefault();
-                if (pair.A is null) continue;
-                warnings.Add(new SafetyWarning(x.Severity == (byte)InteractionSeverity.Severe ? "bad" : "warn",
-                    $"Tương tác {SeverityText(x.Severity)}: {x.Name1} ({pair.A}) + {x.Name2} ({pair.B}) — {x.Description.Trim()}"
-                    + (string.IsNullOrWhiteSpace(x.Recommendation) ? "" : " Khuyến cáo: " + x.Recommendation.Trim())));
-            }
-        }
-        return warnings;
-    }
-
-    /// <summary>Dấu ngắn của bộ cảnh báo (SHA-256 nội dung) — so khớp bộ người dùng đã xem với bộ tính lại khi lưu.</summary>
-    private static string WarningsKeyOf(IEnumerable<SafetyWarning> warnings)
-    {
-        var text = string.Join("\n", warnings.Select(w => w.Text));
-        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(text)))[..16];
-    }
-
-    private static string SeverityText(byte severity) => severity switch
-    {
-        (byte)InteractionSeverity.Minor => "mức nhẹ",
-        (byte)InteractionSeverity.Moderate => "mức trung bình",
-        (byte)InteractionSeverity.Severe => "nghiêm trọng",
-        _ => "chưa rõ mức độ"
-    };
 
     // ================================================================== Tính tiền (3.3.1) — js/pos.js tính tạm theo đúng quy tắc này
 
