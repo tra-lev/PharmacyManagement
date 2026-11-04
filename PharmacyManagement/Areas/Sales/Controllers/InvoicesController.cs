@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using PharmacyManagement.Authorization;
 using PharmacyManagement.Configuration;
+using PharmacyManagement.Models.Enums;
 using PharmacyManagement.Models.ViewModels.Catalog;
 using PharmacyManagement.Models.ViewModels.Sales;
 using PharmacyManagement.Services.Interfaces;
@@ -24,13 +25,15 @@ public class InvoicesController : Controller
     private readonly ISalesInvoiceService _invoices;
     private readonly IPaymentService _payments;
     private readonly ICustomerService _customers;
+    private readonly IReturnService _returns;
     private readonly IAuthorizationService _authorization;
     private readonly UserManager<IdentityUser> _users;
     private readonly BankTransferOptions _bank;
 
-    public InvoicesController(ISalesInvoiceService invoices, IPaymentService payments, ICustomerService customers,
+    public InvoicesController(ISalesInvoiceService invoices, IPaymentService payments, ICustomerService customers, IReturnService returns,
         IAuthorizationService authorization, UserManager<IdentityUser> users, IOptions<PharmacyOptions> pharmacy)
     {
+        _returns = returns;
         _invoices = invoices;
         _payments = payments;
         _customers = customers;
@@ -241,6 +244,13 @@ public class InvoicesController : Controller
         model.CanPay = model.IsPending && model.IsOwn && model.ShiftOpen && model.Permissions.Any;
         model.CanCancel = model.IsPending && await HasAsync(PermissionCodes.Sys09CancelInvoice);
         model.CanEdit = model.IsPending && model.IsOwn && model.ShiftOpen && await CanSellAsync(model.PrescriptionId);
+        if (model.Status == (byte)InvoiceStatus.Paid)
+        {
+            model.Returns = await _returns.GetInvoiceReturnsAsync(model.InvoiceId);
+            var canReceive = await HasAsync(PermissionCodes.F3_4_1)
+                             || (await HasAsync(PermissionCodes.F3_4_2) && await HasAsync(PermissionCodes.F3_4_3));
+            model.CanReturn = canReceive && await _returns.CanReturnTodayAsync(model.InvoiceId);
+        }
     }
 
     private async Task<PaymentPermissions> PaymentPermissionsAsync()

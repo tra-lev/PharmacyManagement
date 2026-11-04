@@ -1,0 +1,192 @@
+﻿@model ReturnListViewModel
+@{
+    ViewData["Title"] = "Đổi trả";
+    var f = Model.Filter;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.Status, page })!;
+    var filtered = f.Q is not null || f.Status is not null;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Bán hàng</p>
+        <h1 class="pm-title">Đổi trả</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (filtered)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) phiếu</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) phiếu đổi trả</text>
+            }</span> · tìm theo mã phiếu, mã hóa đơn, tên hoặc số điện thoại khách.</p>
+    </div>
+    @if (Model.CanLookup)
+    {
+        <a class="btn btn-primary" asp-action="Lookup"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Tiếp nhận đổi trả</a>
+    }
+</div>
+
+@if (Model.Requests.Count > 0)
+{
+    var pendingRequests = Model.Requests.Count(r => r.State == ReturnRequestState.Pending);
+    <section class="pm-card mb-4" aria-labelledby="req-title">
+        <h2 id="req-title" class="pm-h2 mb-1">@(Model.CanProcess ? "Yêu cầu đổi trả hôm nay" : "Yêu cầu bạn đã gửi hôm nay")</h2>
+        <p class="small text-muted-pm mb-3">
+            @if (pendingRequests > 0)
+            {
+                <text>@pendingRequests yêu cầu đang chờ@(Model.CanProcess ? " — bấm vào để xem hóa đơn, kiểm tra hàng và hoàn tiền." : " quản lý xử lý.")</text>
+            }
+            else
+            {
+                <text>Không còn yêu cầu nào đang chờ.</text>
+            }
+        </p>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Hóa đơn</th>
+                        <th scope="col">Khách hàng</th>
+                        <th scope="col">Người gửi</th>
+                        <th scope="col">Lý do</th>
+                        <th scope="col">Kết quả</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Requests)
+                    {
+                        var pendingRow = r.State == ReturnRequestState.Pending;
+                        <tr class="@(pendingRow && Model.CanProcess ? "pm-row-link" : null)">
+                            <td>
+                                @if (pendingRow && Model.CanProcess)
+                                {
+                                    <a class="fw-semibold text-reset stretched-link num" asp-action="Create" asp-route-id="@r.InvoiceId" asp-route-request="@r.RequestId">@r.InvoiceCode</a>
+                                }
+                                else
+                                {
+                                    <a class="fw-semibold num" asp-action="Create" asp-route-id="@r.InvoiceId">@r.InvoiceCode</a>
+                                }
+                                <div class="small text-muted-pm num">Gửi lúc @r.RequestedAt.ToString("HH:mm", CultureInfo.InvariantCulture) · @r.Lines.Count thuốc</div>
+                            </td>
+                            <td>@(r.CustomerName ?? "Khách lẻ")</td>
+                            <td>@r.RequestedBy</td>
+                            <td class="small">@r.Reason</td>
+                            <td>
+                                @if (pendingRow)
+                                {
+                                    <span class="pm-badge wait">Đang chờ</span>
+                                }
+                                else if (r.State == ReturnRequestState.Done)
+                                {
+                                    <span class="pm-badge good">@r.ResultText</span>
+                                    @if (r.ReturnId is not null)
+                                    {
+                                        <div class="small mt-1"><a asp-action="Details" asp-route-id="@r.ReturnId">Xem phiếu</a></div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="pm-badge mute">Từ chối</span>
+                                    <div class="small text-muted-pm mt-1">@r.ResultText</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+<form method="get" asp-action="Index" class="pm-card pm-filter pm-filter-1 mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm phiếu đổi trả</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã phiếu, mã hóa đơn, tên hoặc số điện thoại khách…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi trạng thái</!option>
+            <!option value="pending" selected="@(f.Status == "pending")">Chờ nhập kho</!option>
+            <!option value="completed" selected="@(f.Status == "completed")">Hoàn tất</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (filtered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Danh sách phiếu đổi trả" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
+            @(f.Q is null ? (filtered ? "Chưa có phiếu nào khớp bộ lọc." : "Chưa có phiếu đổi trả nào.") : $"Không tìm thấy phiếu khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Phiếu</th>
+                        <th scope="col">Hóa đơn</th>
+                        <th scope="col">Khách hàng</th>
+                        <th scope="col" class="text-end">Tiền hoàn</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@r.ReturnId">@r.Code</a>
+                                <div class="small text-muted-pm num">@Format.When(r.ReturnDate)</div>
+                            </td>
+                            <td class="num">@r.InvoiceCode</td>
+                            <td>@(r.CustomerName ?? "Khách lẻ")</td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.RefundAmount)<div class="small text-muted-pm">@PaymentMethodText.Of(r.RefundMethod)</div></td>
+                            <td>
+                                <span class="pm-badge @ReturnStatusText.Tone(r.Status)">@ReturnStatusText.Of(r.Status)</span>
+                                @if (r.PendingLines > 0 && r.Status == (byte)ReturnStatus.RefundedPendingRestock)
+                                {
+                                    <div class="small text-muted-pm mt-1">@r.PendingLines dòng chờ nhập</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,78 @@
+﻿@model ReturnLookupViewModel
+@{
+    ViewData["Title"] = "Tiếp nhận đổi trả";
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Đổi trả</a> / Tiếp nhận</p>
+        <h1 class="pm-title">Tiếp nhận đổi trả</h1>
+        <p class="pm-subtitle">Tìm hóa đơn theo mã, tên hoặc số điện thoại khách. Chỉ đổi trả trong ngày mua.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-left" aria-hidden="true"></i> Danh sách phiếu</a>
+</div>
+
+<form method="get" asp-action="Lookup" class="pm-card pm-filter pm-filter-1 mb-4" role="search">
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Mã hóa đơn, tên hoặc số điện thoại khách</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="q" value="@Model.Q" class="form-control" placeholder="Mã hóa đơn, tên hoặc số điện thoại khách (gõ không dấu cũng được)" autocomplete="off" autofocus />
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Tìm</button>
+    </div>
+</form>
+
+@if (Model.Q is not null)
+{
+    <section class="pm-card" aria-label="Hóa đơn tìm thấy">
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="pm-empty"><i class="bi bi-receipt" aria-hidden="true"></i> Không tìm thấy hóa đơn đã thanh toán khớp “@Model.Q”.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="pm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Hóa đơn</th>
+                            <th scope="col">Khách hàng</th>
+                            <th scope="col">Số điện thoại</th>
+                            <th scope="col" class="text-end">Tổng tiền</th>
+                            <th scope="col">Đổi trả</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Rows)
+                        {
+                            <tr class="pm-row-link">
+                                <td>
+                                    <a class="fw-semibold text-reset stretched-link num" asp-action="Create" asp-route-id="@r.InvoiceId">@r.Code</a>
+                                    <div class="small text-muted-pm num">Mua lúc @Format.When(r.SoldAt)</div>
+                                </td>
+                                <td>@(r.CustomerName ?? "Khách lẻ")</td>
+                                <td class="num text-nowrap">@(r.CustomerPhone ?? "—")</td>
+                                <td class="text-end num text-nowrap">@Format.Money(r.TotalAmount)</td>
+                                <td>
+                                    @if (!r.SameDay)
+                                    {
+                                        <span class="pm-badge mute">Quá ngày mua</span>
+                                    }
+                                    else if (!r.HasReturnable)
+                                    {
+                                        <span class="pm-badge mute">Đã trả hết</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="pm-badge good">Còn trả được</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}

@@ -38,7 +38,7 @@ public static class NavigationMenu
             new MenuItem("pos", "Bán lẻ", "cart3", "/Sales/Invoices/Create", Any(P.F3_1_4), true),
             new MenuItem("rx", "Bán theo đơn", "file-earmark-medical", "/Sales/Prescriptions", Any(P.F3_2_1, P.F3_2_4), true),
             new MenuItem("invoices", "Hóa đơn", "receipt", "/Sales/Invoices", Any(P.F3_1_4, P.F3_2_4, P.F3_3_2_1, P.F3_3_2_2, P.F3_3_2_3, P.F4_1_1), true),
-            new MenuItem("returns", "Đổi trả", "arrow-counterclockwise", Soon("returns"), Any(P.F3_4_1, P.F3_4_2), false),
+            new MenuItem("returns", "Đổi trả", "arrow-counterclockwise", "/Sales/Returns", Any(P.F3_4_1, P.F3_4_2, P.F3_4_4), true),
             new MenuItem("customers", "Khách hàng", "people", "/Catalog/Customers", Any(P.F1_2_2), true),
             new MenuItem("shifts", "Ca làm việc", "clock", "/Sales/Shifts", Any(P.F1_4_1, P.F1_4_2, P.F1_4_3), true),
             new MenuItem("lookup", "Tra cứu thuốc & tồn", "search", Soon("lookup"), Any(P.F3_1_1), false, OnlyRoles: new[] { RoleNames.Pharmacist })

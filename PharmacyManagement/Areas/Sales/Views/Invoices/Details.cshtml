@@ -37,6 +37,10 @@
         {
             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancel-modal">Hủy hóa đơn</button>
         }
+        @if (Model.CanReturn)
+        {
+            <a class="btn btn-outline-secondary" asp-controller="Returns" asp-action="Create" asp-route-id="@Model.InvoiceId"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Đổi trả</a>
+        }
         <a class="btn btn-outline-secondary" asp-action="Create"><i class="bi bi-cart3" aria-hidden="true"></i> Bán lẻ</a>
     </div>
 </div>
@@ -209,6 +213,28 @@
                 </tbody>
             </table>
         </div>
+    </section>
+}
+
+@if (Model.Returns.Count > 0)
+{
+    <section class="pm-card mb-4" aria-labelledby="d-returns">
+        <h2 id="d-returns" class="pm-h2 mb-3">Khách đã trả hàng</h2>
+        <ul class="pm-plain-list mb-0">
+            @foreach (var r in Model.Returns)
+            {
+                <li class="d-flex flex-wrap justify-content-between gap-2 py-1">
+                    <span>
+                        <a asp-controller="Returns" asp-action="Details" asp-route-id="@r.ReturnId" class="fw-semibold num">@r.Code</a>
+                        <span class="small text-muted-pm num">· @Format.When(r.ReturnDate)</span>
+                    </span>
+                    <span class="text-nowrap">
+                        <span class="num">hoàn @Format.Money(r.RefundAmount)</span>
+                        <span class="pm-badge @ReturnStatusText.Tone(r.Status) ms-1">@ReturnStatusText.Of(r.Status)</span>
+                    </span>
+                </li>
+            }
+        </ul>
     </section>
 }
 
