@@ -1,0 +1,22 @@
+﻿@model SaleFormViewModel
+@{
+    ViewData["Title"] = "Sửa hóa đơn " + Model.Code;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Hóa đơn</a> / <a asp-action="Details" asp-route-id="@Model.InvoiceId">@Model.Code</a> / Sửa thuốc</p>
+        <h1 class="pm-title">Sửa hóa đơn @Model.Code</h1>
+        <p class="pm-subtitle">Thêm, bớt hoặc đổi thuốc rồi lưu để quay lại thu tiền.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.InvoiceId"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại thu tiền</a>
+</div>
+
+<partial name="_SaleForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/pos.js" asp-append-version="true"></script>
+}

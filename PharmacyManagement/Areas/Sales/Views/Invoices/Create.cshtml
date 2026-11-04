@@ -1,0 +1,46 @@
+﻿@model SaleFormViewModel
+@{
+    ViewData["Title"] = "Bán lẻ";
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Bán hàng</p>
+        <h1 class="pm-title">Bán lẻ</h1>
+        <p class="pm-subtitle">
+            @if (Model.HasOpenShift)
+            {
+                <text>Ca <strong class="text-reset">@Model.ShiftCode</strong> · thuốc không kê đơn</text>
+            }
+            else
+            {
+                <text>Thuốc không kê đơn</text>
+            }
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-receipt" aria-hidden="true"></i> Hóa đơn</a>
+</div>
+
+@if (!Model.HasEmployeeProfile)
+{
+    <div class="pm-alert warn">Tài khoản chưa gắn hồ sơ nhân viên đang làm việc nên chưa bán hàng được. Liên hệ chủ nhà thuốc để cập nhật hồ sơ.</div>
+}
+else if (!Model.HasOpenShift)
+{
+    <section class="pm-card" aria-labelledby="no-shift">
+        <h2 id="no-shift" class="pm-h2 mb-1">Bạn chưa có ca đang mở</h2>
+        <p class="text-muted-pm mb-3">Mở ca trước khi bán hàng.</p>
+        <a class="btn btn-primary" asp-controller="Shifts" asp-action="Index"><i class="bi bi-clock" aria-hidden="true"></i> Đến trang Ca làm việc</a>
+    </section>
+}
+else
+{
+    <partial name="_SaleForm" model="Model" />
+}
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/pos.js" asp-append-version="true"></script>
+}

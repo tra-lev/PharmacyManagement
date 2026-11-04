@@ -584,7 +584,7 @@ public sealed class GoodsReceiptService : IGoodsReceiptService
             .Select(r => new { r.GoodsReceiptCode, r.Status, r.Notes }).FirstOrDefaultAsync(ct);
         if (current is null) return OperationResult.Fail("Không tìm thấy phiếu nhập.");
         if (current.Status != (byte)GoodsReceiptStatus.Inspecting)
-            return OperationResult.Fail($"Phiếu {current.GoodsReceiptCode} {StatusText(current.Status).ToLowerInvariant()} nên không hủy được. Hàng đã nhập kho thì lập phiếu trả nhà cung cấp (2.3.1).");
+            return OperationResult.Fail($"Phiếu {current.GoodsReceiptCode} {StatusText(current.Status).ToLowerInvariant()} nên không hủy được. Hàng đã nhập kho thì lập phiếu trả nhà cung cấp.");
 
         var note = "Hủy phiếu: " + why;
         var notes = string.IsNullOrEmpty(current.Notes) ? note : current.Notes + "\n" + note;
@@ -723,7 +723,7 @@ public sealed class GoodsReceiptService : IGoodsReceiptService
             decimal factor;
             if (unitId == med.BaseUnitId) factor = 1m;
             else if (!factors.TryGetValue((medicineId, unitId), out factor))
-                return data.Fail($"{label}: đơn vị nhập không có trong quy đổi của thuốc — khai báo quy đổi ở Danh mục thuốc (1.1.4).", nameof(form.Lines));
+                return data.Fail($"{label}: đơn vị nhập chưa có trong quy đổi của thuốc — khai báo ở Danh mục thuốc.", nameof(form.Lines));
 
             var qty = line.QuantityReceived;
             if (qty is null or <= 0) return data.Fail($"{label}: nhập số lượng nhận lớn hơn 0.", nameof(form.Lines));

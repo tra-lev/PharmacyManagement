@@ -5,6 +5,9 @@
 // - <select> gốc vẫn nằm trong form (ẩn) và giữ giá trị được gửi lên server; chọn xong phát sự kiện "change" như chọn thường.
 // - Không có JavaScript: vẫn là danh sách thả xuống bình thường. Ô thêm động (dòng mới) được xử lý tự động.
 // Thuộc tính tùy chọn: data-pm-combobox-placeholder, data-pm-combobox-empty.
+// data-pm-combobox-create="Thêm khách hàng mới": khi đang gõ, cuối danh sách có dòng "+ Thêm khách hàng mới “…”";
+//   chọn dòng đó → phát sự kiện "pm-combobox-create" (detail.query = chữ đã gõ) trên <select> để trang tự xử lý.
+// Lựa chọn thêm vào <select> sau khi khởi tạo (ví dụ khách vừa thêm) được nhận ở lần gõ tiếp theo.
 (function () {
   'use strict';
   var MAX_RESULTS = 50;
@@ -54,11 +57,17 @@
     select.tabIndex = -1;
     select.setAttribute('aria-hidden', 'true');
 
-    var items = Array.prototype.filter.call(select.options, function (o) { return o.value !== ''; })
-      .map(function (o) {
-        return { value: o.value, label: o.text, name: fold(o.text), key: fold(o.text + ' ' + (o.getAttribute('data-search') || '')) };
-      });
+    var createLabel = select.getAttribute('data-pm-combobox-create');
+    var items = [];
+    function loadItems() {
+      items = Array.prototype.filter.call(select.options, function (o) { return o.value !== ''; })
+        .map(function (o) {
+          return { value: o.value, label: o.text, name: fold(o.text), key: fold(o.text + ' ' + (o.getAttribute('data-search') || '')) };
+        });
+    }
+    loadItems();
     var shown = [];
+    var lastQuery = '';
     var active = -1;
 
     function currentLabel() {
@@ -92,6 +101,8 @@
     }
 
     function render(query) {
+      if (items.length !== select.options.length - (select.querySelector('option[value=""]') ? 1 : 0)) loadItems();
+      lastQuery = String(query || '').trim();
       var q = fold(query);
       var starts = [];
       var contains = [];
@@ -117,8 +128,30 @@
         li.textContent = it.label;
         list.appendChild(li);
       });
+      if (createLabel && lastQuery !== '') {
+        var add = document.createElement('li');
+        add.id = id + '-opt-create';
+        add.setAttribute('role', 'option');
+        add.setAttribute('aria-selected', 'false');
+        add.setAttribute('data-create', '');
+        add.className = 'pm-combobox-create';
+        add.textContent = '+ ' + createLabel + ' “' + lastQuery + '”';
+        list.appendChild(add);
+      }
       open();
-      setActive(shown.length > 0 ? 0 : -1);
+      setActive(list.querySelector('[role="option"]') ? 0 : -1);
+    }
+
+    function create() {
+      var query = lastQuery;
+      close();
+      select.dispatchEvent(new CustomEvent('pm-combobox-create', { bubbles: true, detail: { query: query } }));
+    }
+
+    function pick(li) {
+      if (!li) return;
+      if (li.hasAttribute('data-create')) create();
+      else choose(li.getAttribute('data-value'));
     }
 
     function choose(value) {
@@ -138,7 +171,7 @@
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         if (list.hidden) render(input.value === currentLabel() ? '' : input.value);
-        else setActive(Math.min(active + 1, shown.length - 1));
+        else setActive(Math.min(active + 1, list.querySelectorAll('[role="option"]').length - 1));
       } else if (e.key === 'ArrowUp') {
         if (!list.hidden) {
           e.preventDefault();
@@ -147,7 +180,7 @@
       } else if (e.key === 'Enter') {
         if (!list.hidden) {
           e.preventDefault(); // không gửi form khi đang chọn
-          if (active >= 0 && shown[active]) choose(shown[active].value);
+          if (active >= 0) pick(list.querySelectorAll('[role="option"]')[active]);
         }
       } else if (e.key === 'Escape') {
         if (!list.hidden) {
@@ -161,7 +194,7 @@
     list.addEventListener('mousedown', function (e) {
       var li = e.target.closest('[role="option"]');
       e.preventDefault();
-      if (li) choose(li.getAttribute('data-value'));
+      pick(li);
     });
     input.addEventListener('blur', function () {
       if (input.value.trim() === '') choose('');

@@ -300,12 +300,12 @@ public sealed class MedicineCatalogService : IMedicineCatalogService
     public async Task<OperationResult<int>> CreateAsync(MedicineFormViewModel form, MedicineEditRights rights, string actorUserId, CancellationToken ct = default)
     {
         if (!rights.CanEditCategory)
-            return OperationResult<int>.Fail("Thêm thuốc cần cả quyền Phân loại thuốc (1.1.3) vì thuốc nào cũng phải thuộc một nhóm.");
+            return OperationResult<int>.Fail("Bạn không có quyền chọn nhóm thuốc nên chưa thêm được thuốc mới.");
 
         var clean = await ValidateAsync(form, existing: null, ct);
         if (clean.Error is not null) return OperationResult<int>.Fail(clean.Error, clean.Field);
         if (clean.Conversions.Count > 0 && !rights.CanEditConversions)
-            return OperationResult<int>.Fail("Bạn không có quyền khai báo quy đổi đơn vị (1.1.4). Bỏ các dòng quy đổi rồi lưu lại.");
+            return OperationResult<int>.Fail("Bạn không có quyền khai báo đơn vị quy đổi. Bỏ các dòng quy đổi rồi lưu lại.");
 
         var employeeId = await EmployeeIdOfAsync(actorUserId, ct);
         var now = DateTime.Now;

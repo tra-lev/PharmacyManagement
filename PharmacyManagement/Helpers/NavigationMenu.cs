@@ -35,9 +35,9 @@ public static class NavigationMenu
     {
         new MenuGroup("sales", "Bán hàng", new[]
         {
-            new MenuItem("pos", "Bán lẻ", "cart3", Soon("pos"), Any(P.F3_1_4), false),
+            new MenuItem("pos", "Bán lẻ", "cart3", "/Sales/Invoices/Create", Any(P.F3_1_4), true),
             new MenuItem("rx", "Bán theo đơn", "file-earmark-medical", Soon("rx"), Any(P.F3_2_1), false),
-            new MenuItem("invoices", "Hóa đơn", "receipt", Soon("invoices"), Any(P.F3_3_2_1, P.F3_3_2_2, P.F3_3_2_3), false),
+            new MenuItem("invoices", "Hóa đơn", "receipt", "/Sales/Invoices", Any(P.F3_1_4, P.F3_3_2_1, P.F3_3_2_2, P.F3_3_2_3, P.F4_1_1), true),
             new MenuItem("returns", "Đổi trả", "arrow-counterclockwise", Soon("returns"), Any(P.F3_4_1, P.F3_4_2), false),
             new MenuItem("customers", "Khách hàng", "people", "/Catalog/Customers", Any(P.F1_2_2), true),
             new MenuItem("shifts", "Ca làm việc", "clock", "/Sales/Shifts", Any(P.F1_4_1, P.F1_4_2, P.F1_4_3), true),
