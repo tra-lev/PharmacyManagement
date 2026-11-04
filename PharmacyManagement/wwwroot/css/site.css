@@ -145,14 +145,18 @@ a:hover { color: var(--pm-ink); }
 .modal-header, .modal-footer { border: 0; }
 
 /* ---------- Thông báo nhanh ---------- */
-.pm-toasts { position: fixed; right: 24px; top: 88px; z-index: 1090; display: flex; flex-direction: column; gap: 10px; max-width: min(440px, calc(100vw - 32px)); }
-.pm-toast { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--pm-radius-inner); background: var(--pm-ink); color: #fff; box-shadow: var(--pm-shadow-pop); font-size: 14px; }
+.pm-toasts { position: fixed; right: 24px; top: 88px; z-index: 1090; display: flex; flex-direction: column; gap: 12px; width: min(520px, calc(100vw - 32px)); pointer-events: none; }
+.pm-toast { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; border-radius: var(--pm-radius-inner); background: var(--pm-ink); color: #fff; box-shadow: var(--pm-shadow-pop); font-size: 16px; line-height: 1.5; pointer-events: auto; }
+.pm-toast > .bi { font-size: 22px; line-height: 1.1; }
+/* Lỗi form đã gom lên thông báo ở góc phải → không hiện lặp khung tóm tắt trong form */
+.pm-main form .validation-summary-errors { display: none; }
+@media (max-width: 575.98px) { .pm-toasts { right: 16px; top: 72px; } }
 .pm-toast.bad { background: var(--pm-bad-bg); color: var(--pm-bad); }
 .pm-toast.warn { background: var(--pm-warn-bg); color: var(--pm-warn); }
 .pm-toast.info { background: var(--pm-surface); color: var(--pm-text); }
 .pm-toast ul { margin: 0; padding-left: 18px; }
 .form-select[aria-invalid="true"] { border: 2px solid var(--pm-bad); }
-.pm-toast button { margin-left: auto; border: 0; background: none; color: inherit; font-size: 18px; line-height: 1; padding: 0 2px; }
+.pm-toast button { margin-left: auto; border: 0; background: none; color: inherit; font-size: 22px; line-height: 1; padding: 0 2px; }
 
 /* ---------- Trang đăng nhập / kích hoạt ---------- */
 .pm-auth { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 48px 16px; }

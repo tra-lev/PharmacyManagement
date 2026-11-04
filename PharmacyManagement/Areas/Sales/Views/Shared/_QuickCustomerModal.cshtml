@@ -1,0 +1,44 @@
+﻿@* Thêm nhanh khách hàng (1.2.2) — dùng ở màn hình Bán lẻ và Tiếp nhận đơn thuốc; gửi bằng pos.js, không tải lại trang.
+   Chỉ hiện khi người dùng có quyền thêm khách (server kiểm tra lại). *@
+<div class="modal fade" id="quick-customer" tabindex="-1" aria-labelledby="qc-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" asp-area="Sales" asp-controller="Invoices" asp-action="QuickCustomer" method="post" data-pm-quick-customer
+              data-pm-customer-url="@Url.Action("Details", "Customers", new { area = "Catalog", id = "__id__" })" novalidate>
+            <div class="modal-header">
+                <h2 class="modal-title pm-h2" id="qc-title">Thêm khách hàng mới</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body d-flex flex-column gap-3">
+                <div class="pm-alert bad" role="alert" data-pm-qc-error hidden></div>
+                <div>
+                    <label for="qc-name" class="form-label">Họ tên <span class="req">*</span></label>
+                    <input type="text" id="qc-name" name="FullName" class="form-control" maxlength="150" autocomplete="off" required />
+                </div>
+                <div>
+                    <label for="qc-phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
+                    <input type="tel" id="qc-phone" name="Phone" class="form-control" maxlength="30" inputmode="tel" autocomplete="off" placeholder="0912 345 678" />
+                </div>
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label for="qc-gender" class="form-label">Giới tính</label>
+                        <select id="qc-gender" name="Gender" class="form-select">
+                            <option value="">— Không ghi —</option>
+                            <option value="1">Nam</option>
+                            <option value="2">Nữ</option>
+                            <option value="3">Khác</option>
+                        </select>
+                    </div>
+                    <div class="col-sm-6">
+                        <label for="qc-dob" class="form-label">Ngày sinh</label>
+                        <input type="date" id="qc-dob" name="DateOfBirth" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
+                    </div>
+                </div>
+                <p class="form-text mb-0">Dị ứng, bệnh nền ghi ở hồ sơ khách hàng.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="submit" class="btn btn-primary" data-pm-qc-submit>Thêm và chọn khách này</button>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,24 +1,40 @@
 ﻿@model SaleFormViewModel
 @{
-    ViewData["Title"] = "Bán lẻ";
+    var rx = Model.Prescription;
+    var title = rx is null ? "Bán lẻ" : "Bán theo đơn " + rx.Code;
+    ViewData["Title"] = title;
 }
 
 <div class="pm-page-head">
     <div>
-        <p class="pm-crumbs">Bán hàng</p>
-        <h1 class="pm-title">Bán lẻ</h1>
+        @if (rx is null)
+        {
+            <p class="pm-crumbs">Bán hàng</p>
+        }
+        else
+        {
+            <p class="pm-crumbs"><a asp-controller="Prescriptions" asp-action="Index">Bán theo đơn</a> / <a asp-controller="Prescriptions" asp-action="Details" asp-route-id="@rx.PrescriptionId">@rx.Code</a> / Lập hóa đơn</p>
+        }
+        <h1 class="pm-title">@title</h1>
         <p class="pm-subtitle">
             @if (Model.HasOpenShift)
             {
-                <text>Ca <strong class="text-reset">@Model.ShiftCode</strong> · thuốc không kê đơn</text>
+                <text>Ca <strong class="text-reset">@Model.ShiftCode</strong> · @(rx is null ? "thuốc không kê đơn" : "khách " + rx.CustomerName)</text>
             }
             else
             {
-                <text>Thuốc không kê đơn</text>
+                <text>@(rx is null ? "Thuốc không kê đơn" : "Khách " + rx.CustomerName)</text>
             }
         </p>
     </div>
-    <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-receipt" aria-hidden="true"></i> Hóa đơn</a>
+    @if (rx is null)
+    {
+        <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-receipt" aria-hidden="true"></i> Hóa đơn</a>
+    }
+    else
+    {
+        <a class="btn btn-outline-secondary" asp-controller="Prescriptions" asp-action="Details" asp-route-id="@rx.PrescriptionId"><i class="bi bi-arrow-left" aria-hidden="true"></i> Quay lại đơn thuốc</a>
+    }
 </div>
 
 @if (!Model.HasEmployeeProfile)

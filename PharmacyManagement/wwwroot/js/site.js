@@ -126,6 +126,71 @@
     }, 0);
   }
 
+  // ---- Lỗi kiểm tra trên trình duyệt (jQuery Validation) khi bấm gửi form: gom lên góc trên bên phải như lỗi từ server ----
+  //      Dòng lỗi dưới từng ô giữ nguyên; khung tóm tắt lỗi trong form không hiện lặp lại (site.css).
+  //      Cửa sổ Thêm khách hàng (data-pm-quick-customer) tự báo lỗi trong cửa sổ.
+  function toastBox() {
+    var box = document.querySelector('.pm-toasts');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'pm-toasts';
+      document.body.appendChild(box);
+    }
+    return box;
+  }
+  function showErrorToast(messages) {
+    document.querySelectorAll('[data-pm-model-errors], [data-pm-client-errors]').forEach(function (t) { t.remove(); });
+    if (messages.length === 0) return;
+    var toast = document.createElement('div');
+    toast.className = 'pm-toast bad';
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('data-pm-client-errors', '');
+    var icon = document.createElement('i');
+    icon.className = 'bi bi-x-circle';
+    icon.setAttribute('aria-hidden', 'true');
+    var body = document.createElement('div');
+    if (messages.length === 1) {
+      body.textContent = messages[0];
+    } else {
+      var title = document.createElement('p');
+      title.className = 'fw-semibold mb-1';
+      title.textContent = 'Chưa lưu được — cần sửa ' + messages.length + ' chỗ:';
+      var ul = document.createElement('ul');
+      messages.forEach(function (m) {
+        var li = document.createElement('li');
+        li.textContent = m;
+        ul.appendChild(li);
+      });
+      body.appendChild(title);
+      body.appendChild(ul);
+    }
+    var close = document.createElement('button');
+    close.type = 'button';
+    close.setAttribute('aria-label', 'Đóng thông báo');
+    close.innerHTML = '&times;';
+    close.addEventListener('click', function () { toast.remove(); });
+    toast.appendChild(icon);
+    toast.appendChild(body);
+    toast.appendChild(close);
+    toastBox().prepend(toast);
+  }
+  // Chỉ trang có khung ứng dụng (_Layout có menu); trang đăng nhập, kích hoạt… giữ cách báo lỗi trong form
+  if (window.jQuery && document.querySelector('.pm-main')) {
+    // jquery.validate gọi triggerHandler("invalid-form") trên chính form → gắn trực tiếp vào từng form
+    window.jQuery('form').not('[data-pm-quick-customer]').on('invalid-form.validate', function (e, validator) {
+      var messages = [];
+      (validator && validator.errorList || []).forEach(function (err) {
+        var text = err.message || 'Giá trị nhập chưa hợp lệ.';
+        if (messages.indexOf(text) < 0) messages.push(text);
+        if (err.element) err.element.setAttribute('aria-invalid', 'true');
+      });
+      showErrorToast(messages);
+    });
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.getAttribute && e.target.getAttribute('aria-invalid') === 'true') e.target.removeAttribute('aria-invalid');
+    });
+  }
+
   // ---- Hiện/ẩn khối theo lựa chọn radio: data-pm-show-when="TênTrường=GiáTrị" ----
   function syncConditional(form) {
     form.querySelectorAll('[data-pm-show-when]').forEach(function (block) {

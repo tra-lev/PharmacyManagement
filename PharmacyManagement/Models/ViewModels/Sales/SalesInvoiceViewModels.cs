@@ -67,7 +67,13 @@ public sealed record SaleMedicineOption(
     decimal AvailableBase,
     IReadOnlyList<SaleUnitOption> Units,
     IReadOnlyList<SalePromotionOption> Promotions,
-    string Keywords);
+    string Keywords,
+    decimal? PrescribedBase = null,
+    string? PrescribedText = null);
+
+/// <summary>Đơn thuốc đang bán (3.2.4) — hiện ở đầu màn hình bán; khách hàng theo đơn, không đổi được.</summary>
+public sealed record SalePrescriptionInfo(
+    int PrescriptionId, string Code, string CustomerName, string DoctorName, string ClinicName, DateOnly PrescriptionDate, DateOnly ValidUntil);
 
 /// <summary>Khách hàng chọn được khi bán (đang hoạt động). <paramref name="Allergies"/>: tên hoạt chất dị ứng đã ghi.</summary>
 public sealed record SaleCustomerOption(int CustomerId, string Label, string Keywords, string? Allergies);
@@ -84,6 +90,11 @@ public sealed class SaleFormViewModel
     public int? InvoiceId { get; set; }
 
     public bool IsEdit => InvoiceId is not null;
+
+    /// <summary>Bán theo đơn thuốc (3.2.4): chỉ bán thuốc có trong đơn, không quá số lượng kê; khách hàng theo đơn.</summary>
+    public int? PrescriptionId { get; set; }
+
+    public bool IsPrescriptionSale => PrescriptionId is not null;
 
     [Display(Name = "Khách hàng")]
     public int? CustomerId { get; set; }
@@ -131,6 +142,9 @@ public sealed class SaleFormViewModel
 
     /// <summary>Dấu của <see cref="Warnings"/> đang hiển thị — ghi vào ô ẩn WarningsKey.</summary>
     public string? ShownWarningsKey { get; set; }
+
+    /// <summary>Thông tin đơn thuốc khi bán theo đơn (server điền).</summary>
+    public SalePrescriptionInfo? Prescription { get; set; }
 }
 
 /// <summary>Thêm nhanh khách hàng tại quầy (1.2.2) — các trường tối thiểu; dị ứng, bệnh nền ghi ở hồ sơ khách.</summary>
@@ -274,6 +288,7 @@ public sealed class InvoiceDetailsViewModel
     public string EmployeeName { get; init; } = string.Empty;
     public string ShiftCode { get; init; } = string.Empty;
     public string? PrescriptionCode { get; init; }
+    public int? PrescriptionId { get; init; }
     public decimal SubTotal { get; init; }
     public decimal DiscountAmount { get; init; }
     public decimal TaxAmount { get; init; }

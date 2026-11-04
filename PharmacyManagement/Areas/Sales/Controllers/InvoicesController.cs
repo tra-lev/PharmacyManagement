@@ -19,6 +19,7 @@ public class InvoicesController : Controller
 {
     private const string NavList = "invoices";
     private const string NavPos = "pos";
+    private const string NavRx = "rx";
 
     private readonly ISalesInvoiceService _invoices;
     private readonly IPaymentService _payments;
@@ -65,24 +66,38 @@ public class InvoicesController : Controller
         return View(model);
     }
 
-    // ---------------- 3.1.4 Lập hóa đơn bán lẻ ----------------
+    // ---------------- 3.1.4 Lập hóa đơn bán lẻ / 3.2.4 lập hóa đơn theo đơn (?prescriptionId=) ----------------
 
     [HttpGet]
-    [Authorize(Policy = PermissionCodes.F3_1_4)]
-    public async Task<IActionResult> Create()
+    public async Task<IActionResult> Create(int? prescriptionId)
     {
-        ViewData["Nav"] = NavPos;
-        var model = await _invoices.NewFormAsync(UserId());
+        if (!await CanSellAsync(prescriptionId)) return Forbid();
+        SaleFormViewModel model;
+        if (prescriptionId is null)
+        {
+            model = await _invoices.NewFormAsync(UserId());
+        }
+        else
+        {
+            var result = await _invoices.NewFromPrescriptionAsync(prescriptionId.Value, UserId());
+            if (!result.Succeeded)
+            {
+                TempData["Error"] = result.Message;
+                return RedirectToAction("Details", "Prescriptions", new { id = prescriptionId });
+            }
+            model = result.Value!;
+        }
+        ViewData["Nav"] = NavOf(model);
         model.CanExceedDiscountLimit = await HasAsync(PermissionCodes.Sys09DiscountOverLimit);
         model.CanCreateCustomer = await HasAsync(PermissionCodes.F1_2_2);
         return View(model);
     }
 
     [HttpPost]
-    [Authorize(Policy = PermissionCodes.F3_1_4)]
     public async Task<IActionResult> Create(SaleFormViewModel form)
     {
-        ViewData["Nav"] = NavPos;
+        if (!await CanSellAsync(form.PrescriptionId)) return Forbid();
+        ViewData["Nav"] = NavOf(form);
         form.InvoiceId = null;
         var canExceed = await HasAsync(PermissionCodes.Sys09DiscountOverLimit);
         if (ModelState.IsValid)
@@ -104,27 +119,29 @@ public class InvoicesController : Controller
     // ---------------- Sửa hóa đơn chờ thanh toán: nút "Sửa thuốc" ở bước thu tiền quay lại màn hình bán ----------------
 
     [HttpGet]
-    [Authorize(Policy = PermissionCodes.F3_1_4)]
     public async Task<IActionResult> Edit(int id)
     {
+        if (!await CanSellAsync(await _invoices.GetPrescriptionIdAsync(id))) return Forbid();
         var result = await _invoices.EditFormAsync(id, UserId());
         if (!result.Succeeded)
         {
             TempData["Error"] = result.Message;
             return RedirectToAction(nameof(Details), new { id });
         }
-        ViewData["Nav"] = NavPos;
         var model = result.Value!;
+        ViewData["Nav"] = NavOf(model);
         model.CanExceedDiscountLimit = await HasAsync(PermissionCodes.Sys09DiscountOverLimit);
         model.CanCreateCustomer = await HasAsync(PermissionCodes.F1_2_2);
         return View(model);
     }
 
     [HttpPost]
-    [Authorize(Policy = PermissionCodes.F3_1_4)]
     public async Task<IActionResult> Edit(int id, SaleFormViewModel form)
     {
-        ViewData["Nav"] = NavPos;
+        // Hóa đơn theo đơn hay bán lẻ: lấy từ CSDL, không tin ô ẩn của form
+        form.PrescriptionId = await _invoices.GetPrescriptionIdAsync(id);
+        if (!await CanSellAsync(form.PrescriptionId)) return Forbid();
+        ViewData["Nav"] = NavOf(form);
         form.InvoiceId = id;
         var canExceed = await HasAsync(PermissionCodes.Sys09DiscountOverLimit);
         if (ModelState.IsValid)
@@ -149,7 +166,7 @@ public class InvoicesController : Controller
     [Authorize(Policy = PermissionCodes.F1_2_2)]
     public async Task<IActionResult> QuickCustomer(QuickCustomerForm form)
     {
-        if (!await HasAsync(PermissionCodes.F3_1_4)) return Forbid();
+        if (!await HasAsync(PermissionCodes.F3_1_4) && !await HasAsync(PermissionCodes.F3_2_1)) return Forbid();
         if (!ModelState.IsValid)
         {
             var error = ModelState.FirstOrDefault(e => e.Value?.Errors.Count > 0);
@@ -223,14 +240,20 @@ public class InvoicesController : Controller
             : null;
         model.CanPay = model.IsPending && model.IsOwn && model.ShiftOpen && model.Permissions.Any;
         model.CanCancel = model.IsPending && await HasAsync(PermissionCodes.Sys09CancelInvoice);
-        model.CanEdit = model.IsPending && model.IsOwn && model.ShiftOpen && await HasAsync(PermissionCodes.F3_1_4);
+        model.CanEdit = model.IsPending && model.IsOwn && model.ShiftOpen && await CanSellAsync(model.PrescriptionId);
     }
 
     private async Task<PaymentPermissions> PaymentPermissionsAsync()
         => new(await HasAsync(PermissionCodes.F3_3_2_1), await HasAsync(PermissionCodes.F3_3_2_2), await HasAsync(PermissionCodes.F3_3_2_3));
 
     private async Task<bool> CanSellOrCollectAsync()
-        => await HasAsync(PermissionCodes.F3_1_4) || (await PaymentPermissionsAsync()).Any;
+        => await HasAsync(PermissionCodes.F3_1_4) || await HasAsync(PermissionCodes.F3_2_4) || (await PaymentPermissionsAsync()).Any;
+
+    /// <summary>Bán lẻ: F3.1.4; bán theo đơn: F3.2.4.</summary>
+    private Task<bool> CanSellAsync(int? prescriptionId)
+        => HasAsync(prescriptionId is null ? PermissionCodes.F3_1_4 : PermissionCodes.F3_2_4);
+
+    private static string NavOf(SaleFormViewModel form) => form.IsPrescriptionSale ? NavRx : NavPos;
 
     private async Task<bool> HasAsync(string code) => (await _authorization.AuthorizeAsync(User, code)).Succeeded;
 

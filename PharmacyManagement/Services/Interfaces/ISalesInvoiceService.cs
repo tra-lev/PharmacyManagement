@@ -14,6 +14,12 @@ public interface ISalesInvoiceService
     /// <summary>Form bán lẻ trống (một dòng thuốc) kèm danh sách chọn.</summary>
     Task<SaleFormViewModel> NewFormAsync(string userId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Form bán theo đơn (3.2.4): điền sẵn thuốc và số lượng kê, khách hàng theo đơn. Đơn phải Chưa bán, còn hạn mua
+    /// (<see cref="PrescriptionRules.ValidDays"/> ngày kể từ ngày kê) và chưa có hóa đơn chờ thanh toán.
+    /// </summary>
+    Task<OperationResult<SaleFormViewModel>> NewFromPrescriptionAsync(int prescriptionId, string userId, CancellationToken ct = default);
+
     /// <summary>Nạp lại danh sách chọn, ca, chính sách giá và cảnh báo an toàn của các dòng hiện có (khi hiện lại form).</summary>
     Task PrepareFormAsync(SaleFormViewModel form, string userId, CancellationToken ct = default);
 
@@ -38,6 +44,12 @@ public interface ISalesInvoiceService
 
     /// <summary>Một lựa chọn khách hàng (nhãn, từ khóa tìm, dị ứng) — trả về sau khi thêm nhanh khách tại quầy; null nếu không có/đã ngừng.</summary>
     Task<SaleCustomerOption?> GetCustomerOptionAsync(int customerId, CancellationToken ct = default);
+
+    /// <summary>Đơn thuốc gắn với hóa đơn (null: bán lẻ hoặc không có hóa đơn) — controller chọn mã quyền F3.1.4 / F3.2.4.</summary>
+    Task<int?> GetPrescriptionIdAsync(int invoiceId, CancellationToken ct = default);
+
+    /// <summary>Khách hàng đang hoạt động (nhãn, từ khóa tìm, dị ứng) — dùng chung cho màn hình tiếp nhận đơn thuốc.</summary>
+    Task<IReadOnlyList<SaleCustomerOption>> GetCustomerOptionsAsync(CancellationToken ct = default);
 
     /// <summary><paramref name="viewAll"/> = true (F4.1.1): mọi hóa đơn; false: chỉ hóa đơn của người dùng.</summary>
     Task<InvoiceListViewModel> GetListAsync(InvoiceFilter filter, string userId, bool viewAll, CancellationToken ct = default);

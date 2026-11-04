@@ -74,7 +74,7 @@ public sealed class PaymentService : IPaymentService
         // ---- Hóa đơn ----
         var invoice = await _db.SalesInvoices.AsNoTracking()
             .Where(i => i.InvoiceId == invoiceId)
-            .Select(i => new { i.InvoiceCode, i.Status, i.EmployeeId, i.ShiftId, i.TotalAmount, ShiftStatus = i.Shift.Status })
+            .Select(i => new { i.InvoiceCode, i.Status, i.EmployeeId, i.ShiftId, i.TotalAmount, i.PrescriptionId, ShiftStatus = i.Shift.Status })
             .FirstOrDefaultAsync(ct);
         if (invoice is null) return OperationResult.Fail("Không tìm thấy hóa đơn.");
         if (invoice.Status != (byte)InvoiceStatus.PendingPayment)
@@ -119,11 +119,25 @@ public sealed class PaymentService : IPaymentService
                 return OperationResult.Fail(issued.Message!);
             }
 
+            // 3.2.4: hóa đơn theo đơn thanh toán xong → đơn chuyển Đã bán (một đơn chỉ một hóa đơn, kể cả khi khách mua một phần)
+            if (invoice.PrescriptionId is not null)
+            {
+                var prescriptionId = invoice.PrescriptionId.Value;
+                var dispensed = await _db.Prescriptions
+                    .Where(p => p.PrescriptionId == prescriptionId && p.Status == (byte)PrescriptionStatus.Saved)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.Status, (byte)PrescriptionStatus.Dispensed), ct);
+                if (dispensed == 0)
+                {
+                    _db.ChangeTracker.Clear();
+                    return OperationResult.Fail("Đơn thuốc của hóa đơn này đã bán hoặc đã hủy nên không thu tiền được.");
+                }
+            }
+
             await _audit.WriteAsync("INVOICE_PAY", "SalesInvoices", invoiceId.ToString(CultureInfo.InvariantCulture),
                 new { Status = (byte)InvoiceStatus.PendingPayment },
                 new
                 {
-                    Status = (byte)InvoiceStatus.Paid, invoice.InvoiceCode, invoice.TotalAmount,
+                    Status = (byte)InvoiceStatus.Paid, invoice.InvoiceCode, invoice.TotalAmount, invoice.PrescriptionId,
                     Cash = cash, Tendered = tendered, Transfer = transfer, TransferReference = transferRef, Card = card, CardReference = cardRef,
                     Batches = issued.Value
                 }, userId, ct);

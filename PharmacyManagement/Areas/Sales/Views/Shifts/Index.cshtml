@@ -68,14 +68,17 @@ else
                 <h2 id="cur-title" class="pm-h2">Ca @c.Code</h2>
                 <p class="small text-muted-pm mb-0 num">Mở lúc @Format.When(c.OpenedAt)@(c.HandedOverAt is null ? "" : " · bàn giao lúc " + Format.When(c.HandedOverAt.Value))</p>
             </div>
-            @if (handedOver)
-            {
-                <span class="pm-badge wait">Đã bàn giao — chờ chốt tiền</span>
-            }
-            else
-            {
-                <span class="pm-badge good">Đang mở</span>
-            }
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                @if (handedOver)
+                {
+                    <span class="pm-badge wait">Đã bàn giao — chờ chốt tiền</span>
+                }
+                else
+                {
+                    <span class="pm-badge good">Đang mở</span>
+                }
+                <a class="btn btn-sm btn-outline-secondary" asp-action="Details" asp-route-id="@c.ShiftId"><i class="bi bi-receipt" aria-hidden="true"></i> Chi tiết ca</a>
+            </div>
         </div>
         <div class="row g-4">
             <div class="col-md-5">

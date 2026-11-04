@@ -9,8 +9,11 @@
             baseUnit = m.BaseUnitName,
             avail = m.AvailableBase,
             units = m.Units.Select(u => new { id = u.UnitId, name = u.UnitName, factor = u.Factor, price = u.Price, def = u.IsDefault }),
-            promos = m.Promotions.Select(p => new { name = p.Name, pct = p.Percent, amt = p.AmountPerBase })
+            promos = m.Promotions.Select(p => new { name = p.Name, pct = p.Percent, amt = p.AmountPerBase }),
+            rxBase = m.PrescribedBase,
+            rxText = m.PrescribedText
         });
+    var rx = Model.Prescription;
 
     string UnitLabel(SaleUnitOption u, string baseUnit)
         => u.UnitName + (u.Factor == 1 ? "" : " (= " + Format.Number(u.Factor) + " " + baseUnit + ")") + " · " + Format.Money(u.Price);
@@ -24,7 +27,7 @@
                 <div class="col-lg-5">
                     <label class="form-label" for="@(idx)-med">Thuốc <span class="req">*</span></label>
                     <select id="@(idx)-med" name="@(p)MedicineId" class="form-select" data-pm-medicine
-                            data-pm-combobox data-pm-combobox-placeholder="Gõ tên, mã thuốc hoặc hoạt chất…" data-pm-combobox-empty="Không tìm thấy thuốc không kê đơn">
+                            data-pm-combobox data-pm-combobox-placeholder="Gõ tên, mã thuốc hoặc hoạt chất…" data-pm-combobox-empty="@(Model.IsPrescriptionSale ? "Không có trong đơn thuốc" : "Không tìm thấy thuốc không kê đơn")">
                         <!option value="">— Chọn thuốc —</!option>
                         @foreach (var m in Model.MedicineOptions)
                         {
@@ -74,6 +77,18 @@
     <div class="col-12">
         <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
     </div>
+    @if (rx is not null)
+    {
+        <input type="hidden" name="PrescriptionId" value="@rx.PrescriptionId" />
+        <div class="col-12">
+            <div class="pm-alert calm mb-0">
+                <i class="bi bi-file-earmark-medical" aria-hidden="true"></i>
+                Bán theo đơn <a asp-controller="Prescriptions" asp-action="Details" asp-route-id="@rx.PrescriptionId" class="fw-semibold">@rx.Code</a>
+                · BS @rx.DoctorName · @rx.ClinicName · còn hạn mua đến @rx.ValidUntil.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture).
+                Được bán ít hơn số lượng kê, không bán nhiều hơn.
+            </div>
+        </div>
+    }
 
     @* ---------------- 3.1.1–3.1.2 Thuốc bán ---------------- *@
     <div class="col-xl-8">
@@ -85,10 +100,10 @@
                     <span class="small text-muted-pm">Hóa đơn <strong class="text-reset">@Model.Code</strong></span>
                 }
             </div>
-            <p class="small text-muted-pm mb-3">Gõ tên, mã thuốc hoặc hoạt chất để tìm.</p>
+            <p class="small text-muted-pm mb-3">@(Model.IsPrescriptionSale ? "Chỉ bán thuốc có trong đơn. Khách không mua thuốc nào thì bỏ dòng đó." : "Gõ tên, mã thuốc hoặc hoạt chất để tìm.")</p>
             @if (Model.MedicineOptions.Count == 0)
             {
-                <div class="pm-empty"><i class="bi bi-capsule" aria-hidden="true"></i> Chưa có thuốc không kê đơn nào đang kinh doanh.</div>
+                <div class="pm-empty"><i class="bi bi-capsule" aria-hidden="true"></i> @(Model.IsPrescriptionSale ? "Các thuốc trong đơn đã ngừng kinh doanh." : "Chưa có thuốc không kê đơn nào đang kinh doanh.")</div>
             }
             else
             {
@@ -112,22 +127,34 @@
     <div class="col-xl-4 pm-sale-summary">
         <section class="pm-card d-flex flex-column gap-3" aria-labelledby="sec-sum">
             <h2 id="sec-sum" class="pm-h2">Khách hàng và tiền</h2>
-            <div>
-                <label for="CustomerId" class="form-label">Khách hàng <span class="opt">(để trống = khách lẻ)</span></label>
-                <select id="CustomerId" name="CustomerId" class="form-select" data-pm-customer
-                        data-pm-combobox data-pm-combobox-placeholder="Khách lẻ — gõ tên hoặc số điện thoại…" data-pm-combobox-empty="Không tìm thấy khách hàng"
-                        data-pm-combobox-create="@(Model.CanCreateCustomer ? "Thêm khách hàng mới" : null)">
-                    <option value="">— Khách lẻ —</option>
-                    @foreach (var c in Model.CustomerOptions)
-                    {
-                        <!option value="@c.CustomerId" data-search="@c.Keywords" data-allergy="@c.Allergies" selected="@(c.CustomerId == Model.CustomerId)">@c.Label</!option>
-                    }
-                </select>
-                <span asp-validation-for="CustomerId" class="field-validation-error"></span>
-                <span class="small d-block mt-1 text-danger" data-pm-allergy></span>
-                <span class="small d-block mt-1" data-pm-customer-added aria-live="polite"></span>
-                <div class="form-text">Chọn khách để kiểm tra dị ứng và lưu vào lịch sử mua.</div>
-            </div>
+            @if (rx is not null)
+            {
+                <div>
+                    <span class="form-label d-block">Khách hàng</span>
+                    <input type="hidden" name="CustomerId" value="@Model.CustomerId" />
+                    <div class="form-control pm-readonly">@rx.CustomerName</div>
+                    <div class="form-text">Khách hàng theo đơn thuốc.</div>
+                </div>
+            }
+            else
+            {
+                <div>
+                    <label for="CustomerId" class="form-label">Khách hàng <span class="opt">(để trống = khách lẻ)</span></label>
+                    <select id="CustomerId" name="CustomerId" class="form-select" data-pm-customer
+                            data-pm-combobox data-pm-combobox-placeholder="Khách lẻ — gõ tên hoặc số điện thoại…" data-pm-combobox-empty="Không tìm thấy khách hàng"
+                            data-pm-combobox-create="@(Model.CanCreateCustomer ? "Thêm khách hàng mới" : null)">
+                        <option value="">— Khách lẻ —</option>
+                        @foreach (var c in Model.CustomerOptions)
+                        {
+                            <!option value="@c.CustomerId" data-search="@c.Keywords" data-allergy="@c.Allergies" selected="@(c.CustomerId == Model.CustomerId)">@c.Label</!option>
+                        }
+                    </select>
+                    <span asp-validation-for="CustomerId" class="field-validation-error"></span>
+                    <span class="small d-block mt-1 text-danger" data-pm-allergy></span>
+                    <span class="small d-block mt-1" data-pm-customer-added aria-live="polite"></span>
+                    <div class="form-text">Chọn khách để kiểm tra dị ứng và lưu vào lịch sử mua.</div>
+                </div>
+            }
 
             @if (Model.Warnings.Count > 0)
             {
@@ -144,7 +171,7 @@
                         <input class="form-check-input" type="checkbox" id="AcknowledgeWarnings" name="AcknowledgeWarnings" value="true" checked="@Model.AcknowledgeWarnings" />
                         <label class="form-check-label" for="AcknowledgeWarnings">Đã xem cảnh báo, đã tư vấn cho khách, vẫn bán</label>
                     </div>
-                    </div>
+                </div>
             }
 
             <dl class="pm-dl mb-0">
@@ -194,49 +221,7 @@
     </div>
 </form>
 
-@if (Model.CanCreateCustomer)
+@if (Model.CanCreateCustomer && !Model.IsPrescriptionSale)
 {
-    @* ---------------- Thêm nhanh khách hàng (1.2.2) — form riêng, gửi bằng pos.js, không tải lại trang ---------------- *@
-    <div class="modal fade" id="quick-customer" tabindex="-1" aria-labelledby="qc-title" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <form class="modal-content" asp-action="QuickCustomer" method="post" data-pm-quick-customer
-                  data-pm-customer-url="@Url.Action("Details", "Customers", new { area = "Catalog", id = "__id__" })" novalidate>
-                <div class="modal-header">
-                    <h2 class="modal-title pm-h2" id="qc-title">Thêm khách hàng mới</h2>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-                </div>
-                <div class="modal-body d-flex flex-column gap-3">
-                    <div class="pm-alert bad" role="alert" data-pm-qc-error hidden></div>
-                    <div>
-                        <label for="qc-name" class="form-label">Họ tên <span class="req">*</span></label>
-                        <input type="text" id="qc-name" name="FullName" class="form-control" maxlength="150" autocomplete="off" required />
-                    </div>
-                    <div>
-                        <label for="qc-phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
-                        <input type="tel" id="qc-phone" name="Phone" class="form-control" maxlength="30" inputmode="tel" autocomplete="off" placeholder="0912 345 678" />
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-sm-6">
-                            <label for="qc-gender" class="form-label">Giới tính</label>
-                            <select id="qc-gender" name="Gender" class="form-select">
-                                <option value="">— Không ghi —</option>
-                                <option value="1">Nam</option>
-                                <option value="2">Nữ</option>
-                                <option value="3">Khác</option>
-                            </select>
-                        </div>
-                        <div class="col-sm-6">
-                            <label for="qc-dob" class="form-label">Ngày sinh</label>
-                            <input type="date" id="qc-dob" name="DateOfBirth" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
-                        </div>
-                    </div>
-                    <p class="form-text mb-0">Dị ứng, bệnh nền ghi ở hồ sơ khách hàng.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
-                    <button type="submit" class="btn btn-primary" data-pm-qc-submit>Thêm và chọn khách này</button>
-                </div>
-            </form>
-        </div>
-    </div>
+    <partial name="_QuickCustomerModal" />
 }

@@ -20,6 +20,9 @@
   // ================================================================ Form bán lẻ
   var form = document.querySelector('[data-pm-sale-form]');
   if (form) initSale(form);
+  // Tiếp nhận đơn thuốc (prescription.js) dùng chung cửa sổ thêm nhanh khách hàng
+  var rxForm = document.querySelector('[data-pm-rx-form]');
+  if (rxForm) initQuickCustomer(rxForm);
 
   function initSale(form) {
     var dataEl = document.getElementById('pm-sale-medicines');
@@ -110,12 +113,15 @@
         if (info.promo.amount > 0) parts.push('Khuyến mãi “' + info.promo.name + '”: −' + vnd(info.promo.amount));
         if (info.unit.factor !== 1) parts.push('= ' + number.format(info.baseQty) + ' ' + info.med.baseUnit);
         var need = needByMed[info.medId];
+        var overRx = info.med.rxBase !== null && info.med.rxBase !== undefined && need > info.med.rxBase;
+        if (info.med.rxText) parts.push('Kê: ' + info.med.rxText + (overRx ? ' — không bán quá số lượng kê' : ''));
+        if (overRx && note) note.classList.add('text-danger');
         if (need > info.med.avail) {
           parts.push(info.med.avail > 0
             ? 'Chỉ còn ' + number.format(info.med.avail) + ' ' + info.med.baseUnit
             : 'Hết hàng');
           if (note) note.classList.add('text-danger');
-        } else if (note) {
+        } else if (note && !overRx) {
           note.classList.add('text-muted-pm');
         }
         if (note) note.textContent = parts.join(' · ');
