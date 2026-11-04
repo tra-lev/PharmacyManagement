@@ -22,7 +22,7 @@
                 <label asp-for="Phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
                 <input asp-for="Phone" class="form-control" type="tel" inputmode="tel" autocomplete="off" placeholder="0912345678" />
                 <span asp-validation-for="Phone" class="field-validation-error"></span>
-                <div class="form-text">Quầy bán tìm khách theo số này; hai khách đang hoạt động không dùng chung một số.</div>
+                <div class="form-text">Mỗi số điện thoại chỉ dùng cho một khách.</div>
             </div>
 
             <div class="col-md-4">
@@ -58,17 +58,17 @@
     @* ---------------- 2. Sức khỏe: bệnh nền (DEC-08) + dị ứng (3.1.3.3) ---------------- *@
     <section class="pm-card" aria-labelledby="sec-health">
         <h2 id="sec-health" class="pm-h2 mb-1">Lưu ý sức khỏe</h2>
-        <p class="small text-muted-pm mb-3">Dùng để cảnh báo khi bán: thuốc có hoạt chất khách dị ứng, thuốc chống chỉ định với bệnh nền. Dược sĩ vẫn là người quyết định.</p>
+        <p class="small text-muted-pm mb-3">Dùng để cảnh báo khi bán thuốc cho khách.</p>
 
         <div class="mb-4">
             <label asp-for="ChronicConditions" class="form-label">Bệnh nền <span class="opt">(không bắt buộc)</span></label>
             <textarea asp-for="ChronicConditions" class="form-control" rows="2" maxlength="500" placeholder="Tăng huyết áp; Đái tháo đường type 2"></textarea>
             <span asp-validation-for="ChronicConditions" class="field-validation-error"></span>
-            <div class="form-text">Mỗi bệnh cách nhau dấu chấm phẩy (;) hoặc xuống dòng. Ghi đúng tên bệnh để hệ thống so với từ khóa chống chỉ định của thuốc.</div>
+            <div class="form-text">Mỗi bệnh cách nhau dấu chấm phẩy (;) hoặc xuống dòng.</div>
         </div>
 
         <h3 class="pm-h3 mb-1">Dị ứng hoạt chất</h3>
-        <p class="small text-muted-pm mb-2">Chọn hoạt chất từ danh sách gợi ý (danh mục hoạt chất của nhà thuốc). Chưa có trong danh sách thì báo người quản lý thêm khi khai báo thuốc.</p>
+        <p class="small text-muted-pm mb-2">Chọn hoạt chất trong danh sách gợi ý.</p>
         <datalist id="ingredient-names">
             @foreach (var n in Model.IngredientNames)
             {

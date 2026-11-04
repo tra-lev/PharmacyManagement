@@ -97,6 +97,35 @@
     }
   });
 
+  // ---- Lỗi form từ server (_Toasts.cshtml, data-pm-model-errors): đã báo ở đầu màn hình →
+  //      ẩn khung lỗi lặp lại trong form, viền đỏ các ô lỗi, đưa con trỏ vào ô lỗi đầu tiên đang hiện ----
+  var modelErrors = document.querySelector('[data-pm-model-errors]');
+  if (modelErrors) {
+    document.querySelectorAll('.validation-summary-errors').forEach(function (summary) {
+      // Đổi về trạng thái "không lỗi" (không ẩn hẳn) để kiểm tra trên trình duyệt vẫn hiện lại được khi cần
+      summary.classList.remove('validation-summary-errors');
+      summary.classList.add('validation-summary-valid');
+      var list = summary.querySelector('ul');
+      if (list) list.innerHTML = '';
+    });
+    var firstInvalid = null;
+    (modelErrors.getAttribute('data-pm-invalid') || '').split('|').forEach(function (name) {
+      if (!name) return;
+      document.querySelectorAll('[name="' + name.replace(/(["\\])/g, '\\$1') + '"]').forEach(function (field) {
+        if (field.type === 'hidden') return;
+        field.setAttribute('aria-invalid', 'true');
+        if (!firstInvalid && field.offsetParent !== null && !field.disabled) firstInvalid = field;
+      });
+    });
+    document.addEventListener('input', function (e) {
+      if (e.target && e.target.getAttribute && e.target.getAttribute('aria-invalid') === 'true') e.target.removeAttribute('aria-invalid');
+    });
+    // Sau khi các script của trang (chọn phương thức thu tiền, ô gõ tìm…) dựng xong giao diện
+    window.setTimeout(function () {
+      if (firstInvalid && firstInvalid.offsetParent !== null) firstInvalid.focus({ preventScroll: false });
+    }, 0);
+  }
+
   // ---- Hiện/ẩn khối theo lựa chọn radio: data-pm-show-when="TênTrường=GiáTrị" ----
   function syncConditional(form) {
     form.querySelectorAll('[data-pm-show-when]').forEach(function (block) {

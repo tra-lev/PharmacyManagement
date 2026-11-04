@@ -1,0 +1,402 @@
+﻿@model InvoiceDetailsViewModel
+@{
+    ViewData["Title"] = "Hóa đơn " + Model.Code;
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var perm = Model.Permissions;
+    var pay = Model.Payment;
+    var payable = Model.Payments.Where(p => p.Status == (byte)PaymentStatus.Succeeded).Sum(p => p.Amount);
+    string Minus(decimal v) => v == 0 ? "0 đ" : "− " + Format.Money(v);
+    var extraLabel = Model.ExtraDiscountPercent is null ? "Giảm thêm cho hóa đơn" : "Giảm thêm " + Model.ExtraDiscountPercent + "%";
+    // Giảm thêm đã chia vào từng dòng (hóa đơn mới) → chú thích ở cột Giảm của dòng
+    var extraInLines = Model.ExtraDiscountAmount > 0 && Model.UnallocatedDiscount == 0;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Hóa đơn</a> / @Model.Code</p>
+        <h1 class="pm-title">Hóa đơn @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @InvoiceStatusText.Tone(Model.Status)">@InvoiceStatusText.Of(Model.Status)</span>
+            <span class="pm-badge mute">@(Model.PrescriptionCode is null ? "Bán lẻ" : "Bán theo đơn " + Model.PrescriptionCode)</span>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (Model.CanEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.InvoiceId"><i class="bi bi-arrow-left" aria-hidden="true"></i> Sửa thuốc</a>
+        }
+        @if (Model.CanCancel)
+        {
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancel-modal">Hủy hóa đơn</button>
+        }
+        <a class="btn btn-outline-secondary" asp-action="Create"><i class="bi bi-cart3" aria-hidden="true"></i> Bán lẻ</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="d-head">
+            <h2 id="d-head" class="pm-h2 mb-3">Thông tin hóa đơn</h2>
+            <dl class="pm-dl">
+                <dt>Ngày lập</dt><dd class="num">@Format.When(Model.InvoiceDate)</dd>
+                <dt>Khách hàng</dt>
+                <dd>
+                    @if (Model.CustomerName is null)
+                    {
+                        <span>Khách lẻ</span>
+                    }
+                    else
+                    {
+                        <span>@Model.CustomerName <span class="text-muted-pm">(@Model.CustomerCode@(Model.CustomerPhone is null ? "" : " · " + Model.CustomerPhone))</span></span>
+                    }
+                </dd>
+                <dt>Người bán</dt><dd>@Model.EmployeeName</dd>
+                <dt>Ca</dt><dd class="num">@Model.ShiftCode</dd>
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+                @if (Model.CancelledAt is not null)
+                {
+                    <dt>Hủy</dt>
+                    <dd>@Format.When(Model.CancelledAt.Value) · @Or(Model.CancelledByName)<div class="pm-pre">Lý do: @Model.CancelReason</div></dd>
+                }
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100 d-flex flex-column gap-3" aria-labelledby="d-total">
+            <h2 id="d-total" class="pm-h2">Tổng tiền</h2>
+            <dl class="pm-dl mb-0">
+                <dt>Tiền hàng</dt><dd class="text-end num">@Format.Money(Model.SubTotal)</dd>
+                <dt>Khuyến mãi</dt><dd class="text-end num">@Minus(Model.PromotionDiscount)</dd>
+                @if (Model.ExtraDiscountAmount > 0)
+                {
+                    <dt>@extraLabel</dt><dd class="text-end num">@Minus(Model.ExtraDiscountAmount)</dd>
+                }
+                @if (Model.TaxAmount != 0)
+                {
+                    <dt>Thuế</dt><dd class="text-end num">@Format.Money(Model.TaxAmount)</dd>
+                }
+            </dl>
+            <div class="pm-stat" data-tone="calm">
+                <span class="l">@(Model.Status == (byte)InvoiceStatus.Paid ? "Đã thu" : "Khách phải trả")</span>
+                <span class="v">@Format.Money(Model.TotalAmount)</span>
+                <span class="small text-muted-pm">@Model.Lines.Count dòng thuốc · giá đã gồm VAT</span>
+            </div>
+        </section>
+    </div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="d-lines">
+    <h2 id="d-lines" class="pm-h2 mb-3">Thuốc bán</h2>
+    <div class="table-responsive">
+        <table class="pm-table">
+            <thead>
+                <tr>
+                    <th scope="col">Thuốc</th>
+                    <th scope="col" class="text-end">SL</th>
+                    <th scope="col" class="text-end">Đơn giá</th>
+                    <th scope="col" class="text-end">Giảm</th>
+                    <th scope="col" class="text-end">Thành tiền</th>
+                    <th scope="col">Lô đã xuất</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">@l.MedicineName</span>
+                            <div class="small text-muted-pm">@l.MedicineCode · @l.UnitName@(l.Factor == 1 ? "" : " = " + Format.Number(l.Factor) + " " + l.BaseUnitName)</div>
+                            @if (l.PromotionName is not null)
+                            {
+                                <div><span class="pm-badge calm">@l.PromotionName</span></div>
+                            }
+                        </td>
+                        <td class="text-end num text-nowrap">@Format.Number(l.Quantity)</td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.UnitPrice)</td>
+                        <td class="text-end num text-nowrap">
+                            @(l.DiscountAmount == 0 ? "—" : "− " + Format.Money(l.DiscountAmount))
+                            @if (l.DiscountAmount > 0)
+                            {
+                                <div class="small text-muted-pm">@(l.PromotionName is null ? "" : "khuyến mãi")@(l.PromotionName is not null && extraInLines ? " + " : "")@(extraInLines ? "giảm thêm" + (Model.ExtraDiscountPercent is null ? "" : " " + Model.ExtraDiscountPercent + "%") : "")</div>
+                            }
+                        </td>
+                        <td class="text-end num text-nowrap fw-semibold">@Format.Money(l.LineTotal)</td>
+                        <td class="small">
+                            @if (l.Allocations.Count == 0)
+                            {
+                                <span class="text-muted-pm">@(Model.Status == (byte)InvoiceStatus.Cancelled ? "Không xuất kho" : "Xuất kho khi thu đủ tiền")</span>
+                            }
+                            else
+                            {
+                                foreach (var a in l.Allocations)
+                                {
+                                    <div class="num">Lô @a.BatchNumber · HSD @a.ExpiryDate.ToString("dd/MM/yyyy", vi) · @Format.Number(a.QuantityBase) @l.BaseUnitName</div>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row" colspan="4" class="text-end fw-normal text-muted-pm">Tiền hàng</th>
+                    <td class="text-end num text-nowrap">@Format.Money(Model.SubTotal)</td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <th scope="row" colspan="4" class="text-end fw-normal text-muted-pm">Khuyến mãi</th>
+                    <td class="text-end num text-nowrap">@Minus(Model.PromotionDiscount)</td>
+                    <td></td>
+                </tr>
+                @if (Model.ExtraDiscountAmount > 0)
+                {
+                    <tr>
+                        <th scope="row" colspan="4" class="text-end fw-normal text-muted-pm">@extraLabel</th>
+                        <td class="text-end num text-nowrap">@Minus(Model.ExtraDiscountAmount)</td>
+                        <td></td>
+                    </tr>
+                }
+                <tr>
+                    <th scope="row" colspan="4" class="text-end">@(Model.Status == (byte)InvoiceStatus.Paid ? "Đã thu" : "Khách phải trả")</th>
+                    <td class="text-end num text-nowrap fw-semibold">@Format.Money(Model.TotalAmount)</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
+
+@if (Model.Payments.Count > 0)
+{
+    <section class="pm-card mb-4" aria-labelledby="d-pay">
+        <h2 id="d-pay" class="pm-h2 mb-3">Đã thu</h2>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Hình thức</th>
+                        <th scope="col" class="text-end">Số tiền</th>
+                        <th scope="col" class="text-end">Khách đưa / tiền thối</th>
+                        <th scope="col">Mã giao dịch</th>
+                        <th scope="col">Thời điểm</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model.Payments)
+                    {
+                        <tr>
+                            <td>
+                                @PaymentMethodText.Of(p.Method)
+                                @if (p.Status != (byte)PaymentStatus.Succeeded)
+                                {
+                                    <span class="pm-badge mute ms-1">Đã hủy</span>
+                                }
+                            </td>
+                            <td class="text-end num text-nowrap">@Format.Money(p.Amount)</td>
+                            <td class="text-end num text-nowrap">@(p.TenderedAmount is null ? "—" : Format.Money(p.TenderedAmount) + " / " + Format.Money(p.Change))</td>
+                            <td class="num">@Or(p.Reference)</td>
+                            <td class="num text-nowrap">@Format.When(p.PaidAt)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+@if (Model.IsPending)
+{
+    if (Model.CanPay)
+    {
+        @* ---------------- 3.3.2 Thu tiền (một lần cho đủ): chọn phương thức → ô tương ứng ---------------- *@
+        var canMixed = perm.Combined && perm.Cash && perm.NonCash;
+        <section class="pm-card" id="pay" aria-labelledby="pay-title">
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-1">
+                <h2 id="pay-title" class="pm-h2">Thu tiền</h2>
+                @if (Model.CanEdit)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.InvoiceId"><i class="bi bi-arrow-left" aria-hidden="true"></i> Sửa thuốc</a>
+                }
+            </div>
+            <p class="small text-muted-pm mb-3">
+                Khách phải trả <strong class="text-reset num">@Format.Money(Model.TotalAmount)</strong>. Sau khi xác nhận, hóa đơn không sửa được nữa.
+            </p>
+            <form asp-action="Pay" asp-route-id="@Model.InvoiceId" method="post" class="d-flex flex-column gap-3" data-pm-pay-form
+                  data-pm-total="@Format.Input(Model.TotalAmount)" data-pm-code="@Model.Code" novalidate>
+                <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+
+                <fieldset class="pm-seg pm-pay-methods" data-pm-pay-methods hidden>
+                    <legend class="visually-hidden">Phương thức thanh toán</legend>
+                    @if (perm.Cash)
+                    {
+                        <label><input type="radio" name="pm-pay-method" value="cash" /> <i class="bi bi-cash" aria-hidden="true"></i> Tiền mặt</label>
+                    }
+                    @if (perm.NonCash)
+                    {
+                        <label><input type="radio" name="pm-pay-method" value="transfer" /> <i class="bi bi-qr-code" aria-hidden="true"></i> Chuyển khoản (QR)</label>
+                        <label><input type="radio" name="pm-pay-method" value="card" /> <i class="bi bi-credit-card" aria-hidden="true"></i> Thẻ</label>
+                    }
+                    @if (canMixed)
+                    {
+                        <label><input type="radio" name="pm-pay-method" value="mixed" /> <i class="bi bi-intersect" aria-hidden="true"></i> Kết hợp</label>
+                    }
+                </fieldset>
+                @if (canMixed)
+                {
+                    @* Kết hợp: nhập tiền mặt khách đưa → phần còn lại tự điền sang hình thức chọn ở đây (pos.js) *@
+                    <div class="pm-mixed-rest" data-pm-mixed-rest hidden>
+                        <fieldset class="pm-seg pm-pay-methods">
+                            <legend class="visually-hidden">Phần còn lại trả bằng</legend>
+                            <span class="small text-muted-pm align-self-center px-2">Phần còn lại trả bằng</span>
+                            <label><input type="radio" name="pm-pay-rest" value="transfer" checked /> <i class="bi bi-qr-code" aria-hidden="true"></i> Chuyển khoản (QR)</label>
+                            <label><input type="radio" name="pm-pay-rest" value="card" /> <i class="bi bi-credit-card" aria-hidden="true"></i> Thẻ</label>
+                        </fieldset>
+                        <p class="small text-muted-pm mb-0">Nhập tiền mặt khách đưa, phần còn lại tự điền.</p>
+                    </div>
+                }
+
+                @if (perm.Cash)
+                {
+                    <div class="pm-inner" data-pm-pay-panel="cash">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-sm-6 col-lg-4">
+                                <label for="pay-cash" class="form-label">Tiền mặt</label>
+                                <div class="input-group">
+                                    <input type="text" id="pay-cash" name="Payment.CashAmount" value="@Format.MoneyInput(pay.CashAmount)" class="form-control text-end num" inputmode="numeric" autocomplete="off" placeholder="0" data-pm-money data-pm-pay="cash" />
+                                    <span class="input-group-text">đ</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-4" data-pm-tender-only>
+                                <label for="pay-tendered" class="form-label">Khách đưa <span class="opt">(để tính tiền thối)</span></label>
+                                <div class="input-group">
+                                    <input type="text" id="pay-tendered" name="Payment.TenderedAmount" value="@Format.MoneyInput(pay.TenderedAmount)" class="form-control text-end num" inputmode="numeric" autocomplete="off" placeholder="Bằng tiền mặt" data-pm-money data-pm-tendered />
+                                    <span class="input-group-text">đ</span>
+                                </div>
+                            </div>
+                            <div class="col-lg-4" data-pm-tender-only>
+                                <span class="form-label d-block">Tiền thối</span>
+                                <div class="form-control pm-readonly num justify-content-end fw-semibold" data-pm-change>—</div>
+                            </div>
+                            <div class="col-12" data-pm-tender-only>
+                                <div class="d-flex flex-wrap gap-2" data-pm-cash-notes aria-label="Khách đưa nhanh"></div>
+                            </div>
+                        </div>
+                    </div>
+                }
+                @if (perm.NonCash)
+                {
+                    <div class="pm-inner" data-pm-pay-panel="transfer">
+                        <div class="row g-3">
+                            @if (Model.Bank is not null)
+                            {
+                                <div class="col-md-5 col-lg-4">
+                                    <div class="pm-qr" data-pm-qr data-bin="@Model.Bank.BankBin" data-account="@Model.Bank.AccountNumber" role="img" aria-label="Mã VietQR chuyển khoản"></div>
+                                </div>
+                            }
+                            <div class="@(Model.Bank is null ? "col-12" : "col-md-7 col-lg-8") d-flex flex-column gap-2">
+                                @if (Model.Bank is null)
+                                {
+                                    <div class="pm-alert warn">Chưa có tài khoản nhận chuyển khoản. Liên hệ chủ nhà thuốc.</div>
+                                }
+                                else
+                                {
+                                    <dl class="pm-dl mb-0">
+                                        <dt>Ngân hàng</dt><dd>@Model.Bank.BankName</dd>
+                                        <dt>Số tài khoản</dt><dd class="num fw-semibold">@Model.Bank.AccountNumber</dd>
+                                        <dt>Chủ tài khoản</dt><dd>@Model.Bank.AccountName</dd>
+                                        <dt>Số tiền</dt><dd class="num fw-semibold" data-pm-qr-amount>—</dd>
+                                        <dt>Nội dung</dt><dd class="num">@Model.Code</dd>
+                                    </dl>
+                                    <p class="form-text mb-0">Khách quét mã để chuyển khoản.</p>
+                                }
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-sm-5">
+                                        <label for="pay-transfer" class="form-label">Chuyển khoản/QR</label>
+                                        <div class="input-group">
+                                            <input type="text" id="pay-transfer" name="Payment.TransferAmount" value="@Format.MoneyInput(pay.TransferAmount)" class="form-control text-end num" inputmode="numeric" autocomplete="off" placeholder="0" data-pm-money data-pm-pay="transfer" />
+                                            <span class="input-group-text">đ</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-7">
+                                        <label for="pay-transfer-ref" class="form-label">Mã giao dịch <span class="req">*</span></label>
+                                        <input type="text" id="pay-transfer-ref" name="Payment.TransferReference" value="@pay.TransferReference" class="form-control" maxlength="100" autocomplete="off" placeholder="FT2647250691" data-pm-ref="transfer" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pm-inner" data-pm-pay-panel="card">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-sm-6 col-lg-4">
+                                <label for="pay-card" class="form-label">Thẻ</label>
+                                <div class="input-group">
+                                    <input type="text" id="pay-card" name="Payment.CardAmount" value="@Format.MoneyInput(pay.CardAmount)" class="form-control text-end num" inputmode="numeric" autocomplete="off" placeholder="0" data-pm-money data-pm-pay="card" />
+                                    <span class="input-group-text">đ</span>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-lg-8">
+                                <label for="pay-card-ref" class="form-label">Mã giao dịch thẻ <span class="req">*</span></label>
+                                <input type="text" id="pay-card-ref" name="Payment.CardReference" value="@pay.CardReference" class="form-control" maxlength="100" autocomplete="off" placeholder="Số tham chiếu trên biên lai máy POS" data-pm-ref="card" />
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <span class="small" data-pm-pay-sum aria-live="polite"></span>
+                <div class="pm-form-actions">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-cash-coin" aria-hidden="true"></i> Xác nhận đã thu @Format.Money(Model.TotalAmount)</button>
+                </div>
+            </form>
+        </section>
+    }
+    else if (!Model.IsOwn)
+    {
+        <div class="pm-alert calm">Hóa đơn chờ người lập (@Model.EmployeeName) thu tiền trong ca @Model.ShiftCode.</div>
+    }
+    else if (!Model.ShiftOpen)
+    {
+        <div class="pm-alert warn">Ca @Model.ShiftCode không còn đang mở nên không thu tiền được. Hủy hóa đơn này nếu khách không mua nữa.</div>
+    }
+    else
+    {
+        <div class="pm-alert warn">Bạn không có quyền thu tiền.</div>
+    }
+    if (!Model.CanCancel)
+    {
+        <p class="form-text mt-3 mb-0">Khách không mua nữa: nhờ chủ nhà thuốc hủy hóa đơn.</p>
+    }
+}
+else if (Model.Status == (byte)InvoiceStatus.Paid && payable > 0)
+{
+    <p class="form-text mb-0">Hóa đơn đã thanh toán không hủy, không sửa được. Khách đổi trả thì xử lý ở mục Đổi trả.</p>
+}
+
+@if (Model.CanCancel)
+{
+    <div class="modal fade" id="cancel-modal" tabindex="-1" aria-labelledby="cancel-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Cancel" asp-route-id="@Model.InvoiceId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="cancel-title">Hủy hóa đơn @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Hóa đơn chuyển sang Đã hủy và vẫn được lưu để tra cứu.</p>
+                    <label for="cancel-reason" class="form-label">Lý do hủy <span class="req">*</span></label>
+                    <input type="text" id="cancel-reason" name="reason" class="form-control" maxlength="500" required autocomplete="off" placeholder="Ví dụ: khách đổi ý, không mua nữa" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không hủy</button>
+                    <button type="submit" class="btn btn-danger">Hủy hóa đơn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @* Thư viện vẽ mã QR, tự host (MIT — Kazuhiko Arase, qrcode-generator 2.0.4); không cần Internet *@
+    <script src="~/lib/qrcode-generator/qrcode.js" asp-append-version="true"></script>
+    <script src="~/js/pos.js" asp-append-version="true"></script>
+}

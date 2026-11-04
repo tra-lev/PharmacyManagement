@@ -42,7 +42,7 @@
                 {
                     <input type="hidden" name="CategoryId" value="@Model.CategoryId" />
                     <input id="CategoryId" class="form-control" value="@(Model.CategoryOptions.FirstOrDefault(c => c.Id == Model.CategoryId)?.Name)" disabled />
-                    <div class="form-text">Đổi nhóm cần quyền Phân loại thuốc (1.1.3).</div>
+                    <div class="form-text">Bạn không có quyền đổi nhóm thuốc.</div>
                 }
                 <span asp-validation-for="CategoryId" class="field-validation-error"></span>
             </div>
@@ -58,7 +58,7 @@
                 <details class="mt-2" open="@(!string.IsNullOrWhiteSpace(Model.NewManufacturerName))">
                     <summary class="small">Hãng chưa có trong danh sách?</summary>
                     <input asp-for="NewManufacturerName" class="form-control mt-2" placeholder="Tên hãng mới" autocomplete="off" />
-                    <div class="form-text">Gõ tên hãng mới thì ô chọn ở trên được bỏ qua. Trùng tên hãng đã có thì dùng lại hãng đó.</div>
+                    <div class="form-text">Chưa có hãng trong danh sách thì gõ tên hãng mới.</div>
                 </details>
             </div>
 
@@ -175,7 +175,7 @@
                 @if (Model.PricesLocked)
                 {
                     <div class="form-control pm-readonly num" id="DefaultSellingPrice" data-pm-base-price="@Format.Input(Model.DefaultSellingPrice)">@Format.Money(Model.DefaultSellingPrice)</div>
-                    <div class="form-text"><i class="bi bi-lock" aria-hidden="true"></i> Giá đã khai báo. Chỉ chủ nhà thuốc đổi giá ở Chính sách giá (1.5.4).</div>
+                    <div class="form-text"><i class="bi bi-lock" aria-hidden="true"></i> Chỉ chủ nhà thuốc đổi được giá.</div>
                 }
                 else
                 {
@@ -183,7 +183,7 @@
                         <input type="text" id="DefaultSellingPrice" name="DefaultSellingPrice" value="@Format.MoneyInput(Model.DefaultSellingPrice)" class="form-control text-end num" inputmode="numeric" autocomplete="off" data-pm-base-price-input data-pm-money data-val="true" data-val-pmmoney="Giá bán từ 0 đ đến 1.000.000.000 đ, tính theo đồng (không có số lẻ)." data-val-pmmoney-min="0" data-val-pmmoney-max="1000000000" />
                         <span class="input-group-text">đ</span>
                     </div>
-                    <div class="form-text">Khai báo một lần; sau khi lưu, chỉ chủ nhà thuốc đổi được giá.</div>
+                    <div class="form-text">Sau khi lưu, chỉ chủ nhà thuốc đổi được giá.</div>
                 }
                 <span asp-validation-for="DefaultSellingPrice" class="field-validation-error"></span>
             </div>
@@ -192,11 +192,11 @@
         <h3 class="pm-h3 mt-4 mb-1">Quy đổi Hộp – Vỉ – Viên</h3>
         <p class="small text-muted-pm mb-3">
             Mỗi dòng: 1 đơn vị lớn bằng bao nhiêu <span data-pm-base-unit-name>@baseUnitName</span>. Ví dụ 1 Hộp = 100, 1 Vỉ = 10.
-            Giá để trống thì tự tính = giá bán đơn vị cơ sở × số lượng.
+            Để trống giá thì tự tính theo giá đơn vị cơ sở.
         </p>
         @if (!Model.CanEditConversions)
         {
-            <div class="pm-alert calm small mb-3">Khai báo quy đổi cần quyền 1.1.4 — bạn chỉ xem được các dòng đã có.</div>
+            <div class="pm-alert calm small mb-3">Bạn chỉ xem được các đơn vị quy đổi đã có.</div>
         }
         <div class="pm-lines pm-lines-conv" data-pm-repeater="conversions" data-pm-next="@Model.Conversions.Count">
             <div class="pm-line pm-line-head" aria-hidden="true">
@@ -232,7 +232,7 @@
                     }
                     @if (line.PriceLocked)
                     {
-                        <span class="pm-readonly num" title="Giá đã khai báo — đổi ở Chính sách giá (1.5.4)">
+                        <span class="pm-readonly num" title="Chỉ chủ nhà thuốc đổi được giá">
                             @(line.SellingPrice is null ? "Tự tính" : Format.Money(line.SellingPrice.Value)) <i class="bi bi-lock small" aria-hidden="true"></i>
                         </span>
                     }
@@ -298,7 +298,7 @@
             <div class="col-md-6">
                 <label asp-for="ContraindicationKeywords" class="form-label"></label>
                 <textarea asp-for="ContraindicationKeywords" class="form-control" rows="4" placeholder="suy gan&#10;phụ nữ có thai"></textarea>
-                <div class="form-text">Mỗi dòng một từ khóa. Đối chiếu với chẩn đoán và bệnh mạn tính của khách khi bán theo đơn.</div>
+                <div class="form-text">Mỗi dòng một từ khóa, ví dụ: suy gan.</div>
                 <span asp-validation-for="ContraindicationKeywords" class="field-validation-error"></span>
             </div>
             <div class="col-md-6">

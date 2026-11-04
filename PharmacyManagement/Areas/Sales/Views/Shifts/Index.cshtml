@@ -53,7 +53,7 @@ else if (c is null)
         }
         else
         {
-            <p class="mb-0">Bạn không có quyền Mở ca (1.4.1).</p>
+            <p class="mb-0">Bạn không có quyền mở ca.</p>
         }
     </section>
 }
@@ -117,7 +117,7 @@ else
             <p class="text-muted-pm mb-3">Sau khi bàn giao, ca này không lập hóa đơn mới được nữa; bước tiếp theo là đếm tiền và chốt tiền cuối ca.</p>
             @if (!Model.CanHandover)
             {
-                <p class="mb-0">Bạn không có quyền Bàn giao ca (1.4.2).</p>
+                <p class="mb-0">Bạn không có quyền bàn giao ca.</p>
             }
             else if (t.PendingInvoiceCount > 0)
             {
@@ -170,7 +170,7 @@ else
             }
             else
             {
-                <p class="mb-0">Bạn không có quyền Chốt tiền cuối ca (1.4.3).</p>
+                <p class="mb-0">Bạn không có quyền chốt tiền cuối ca.</p>
             }
         </section>
     }

@@ -1,0 +1,242 @@
+﻿@model SaleFormViewModel
+@{
+    var medicines = Model.MedicineOptions.ToDictionary(m => m.MedicineId);
+    // Dữ liệu cho pos.js: đơn vị + giá bán, tồn khả dụng (đơn vị cơ sở), khuyến mãi đang hiệu lực của từng thuốc
+    var medicineData = Model.MedicineOptions.ToDictionary(
+        m => m.MedicineId.ToString(CultureInfo.InvariantCulture),
+        m => new
+        {
+            baseUnit = m.BaseUnitName,
+            avail = m.AvailableBase,
+            units = m.Units.Select(u => new { id = u.UnitId, name = u.UnitName, factor = u.Factor, price = u.Price, def = u.IsDefault }),
+            promos = m.Promotions.Select(p => new { name = p.Name, pct = p.Percent, amt = p.AmountPerBase })
+        });
+
+    string UnitLabel(SaleUnitOption u, string baseUnit)
+        => u.UnitName + (u.Factor == 1 ? "" : " (= " + Format.Number(u.Factor) + " " + baseUnit + ")") + " · " + Format.Money(u.Price);
+
+    void LineFields(SaleLineForm l, string idx, SaleMedicineOption? med)
+    {
+        var p = "Lines[" + idx + "].";
+        <div class="pm-inner" data-pm-row data-pm-sale-line>
+            <input type="hidden" name="Lines.Index" value="@idx" />
+            <div class="row g-2 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label" for="@(idx)-med">Thuốc <span class="req">*</span></label>
+                    <select id="@(idx)-med" name="@(p)MedicineId" class="form-select" data-pm-medicine
+                            data-pm-combobox data-pm-combobox-placeholder="Gõ tên, mã thuốc hoặc hoạt chất…" data-pm-combobox-empty="Không tìm thấy thuốc không kê đơn">
+                        <!option value="">— Chọn thuốc —</!option>
+                        @foreach (var m in Model.MedicineOptions)
+                        {
+                            <!option value="@m.MedicineId" data-search="@m.Keywords" selected="@(m.MedicineId == l.MedicineId)">@m.Label</!option>
+                        }
+                    </select>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <label class="form-label" for="@(idx)-unit">Đơn vị bán <span class="req">*</span></label>
+                    <select id="@(idx)-unit" name="@(p)UnitId" class="form-select" data-pm-unit>
+                        @if (med is null)
+                        {
+                            <!option value="">— Chọn thuốc trước —</!option>
+                        }
+                        else
+                        {
+                            var chosen = l.UnitId ?? med.Units.FirstOrDefault(u => u.IsDefault)?.UnitId;
+                            foreach (var u in med.Units)
+                            {
+                                <!option value="@u.UnitId" selected="@(u.UnitId == chosen)">@UnitLabel(u, med.BaseUnitName)</!option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-5 col-sm-3 col-lg-1">
+                    <label class="form-label" for="@(idx)-qty">SL <span class="req">*</span></label>
+                    <input type="number" id="@(idx)-qty" name="@(p)Quantity" value="@(l.Quantity ?? 1)" class="form-control text-end" min="1" max="@SaleFormViewModel.MaxQuantity" step="1" inputmode="numeric" data-pm-qty />
+                </div>
+                <div class="col-5 col-sm-3 col-lg-2">
+                    <span class="form-label d-block">Thành tiền</span>
+                    <div class="form-control pm-readonly num justify-content-end" data-pm-line-total>—</div>
+                </div>
+                <div class="col-2 col-lg-1 d-flex justify-content-end">
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng thuốc"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+                <div class="col-12">
+                    <span class="small d-block" data-pm-line-note></span>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<form asp-action="@(Model.IsEdit ? "Edit" : "Create")" asp-route-id="@Model.InvoiceId" method="post" class="row g-4 align-items-start" data-pm-repeater-form data-pm-sale-form
+      data-pm-max-discount="@Format.Input(Model.MaxDiscountPercent)" data-pm-over-limit="@(Model.CanExceedDiscountLimit ? "true" : "false")" novalidate>
+    <script type="application/json" id="pm-sale-medicines">@Json.Serialize(medicineData)</script>
+    <div class="col-12">
+        <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+    </div>
+
+    @* ---------------- 3.1.1–3.1.2 Thuốc bán ---------------- *@
+    <div class="col-xl-8">
+        <section class="pm-card" aria-labelledby="sec-lines">
+            <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+                <h2 id="sec-lines" class="pm-h2">Thuốc bán</h2>
+                @if (Model.IsEdit)
+                {
+                    <span class="small text-muted-pm">Hóa đơn <strong class="text-reset">@Model.Code</strong></span>
+                }
+            </div>
+            <p class="small text-muted-pm mb-3">Gõ tên, mã thuốc hoặc hoạt chất để tìm.</p>
+            @if (Model.MedicineOptions.Count == 0)
+            {
+                <div class="pm-empty"><i class="bi bi-capsule" aria-hidden="true"></i> Chưa có thuốc không kê đơn nào đang kinh doanh.</div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3" data-pm-repeater="lines" data-pm-next="@Model.Lines.Count">
+                    @for (var i = 0; i < Model.Lines.Count; i++)
+                    {
+                        var line = Model.Lines[i];
+                        medicines.TryGetValue(line.MedicineId ?? 0, out var med);
+                        LineFields(line, i.ToString(CultureInfo.InvariantCulture), med);
+                    }
+                    <template data-pm-template="lines">
+                        @{ LineFields(new SaleLineForm(), "__i__", null); }
+                    </template>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-pm-add="lines"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm thuốc</button>
+            }
+        </section>
+    </div>
+
+    @* ---------------- Khách hàng, 3.1.3 cảnh báo, 3.3.1 tổng tiền ---------------- *@
+    <div class="col-xl-4 pm-sale-summary">
+        <section class="pm-card d-flex flex-column gap-3" aria-labelledby="sec-sum">
+            <h2 id="sec-sum" class="pm-h2">Khách hàng và tiền</h2>
+            <div>
+                <label for="CustomerId" class="form-label">Khách hàng <span class="opt">(để trống = khách lẻ)</span></label>
+                <select id="CustomerId" name="CustomerId" class="form-select" data-pm-customer
+                        data-pm-combobox data-pm-combobox-placeholder="Khách lẻ — gõ tên hoặc số điện thoại…" data-pm-combobox-empty="Không tìm thấy khách hàng"
+                        data-pm-combobox-create="@(Model.CanCreateCustomer ? "Thêm khách hàng mới" : null)">
+                    <option value="">— Khách lẻ —</option>
+                    @foreach (var c in Model.CustomerOptions)
+                    {
+                        <!option value="@c.CustomerId" data-search="@c.Keywords" data-allergy="@c.Allergies" selected="@(c.CustomerId == Model.CustomerId)">@c.Label</!option>
+                    }
+                </select>
+                <span asp-validation-for="CustomerId" class="field-validation-error"></span>
+                <span class="small d-block mt-1 text-danger" data-pm-allergy></span>
+                <span class="small d-block mt-1" data-pm-customer-added aria-live="polite"></span>
+                <div class="form-text">Chọn khách để kiểm tra dị ứng và lưu vào lịch sử mua.</div>
+            </div>
+
+            @if (Model.Warnings.Count > 0)
+            {
+                <div class="pm-alert warn" role="alert" aria-labelledby="warn-title">
+                    <p id="warn-title" class="fw-semibold mb-2"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Cảnh báo an toàn (@Model.Warnings.Count)</p>
+                    <ul class="pm-plain-list small mb-3">
+                        @foreach (var w in Model.Warnings)
+                        {
+                            <li><span class="pm-badge @w.Tone me-1">@(w.Tone == "bad" ? "Cần chú ý" : "Lưu ý")</span>@w.Text</li>
+                        }
+                    </ul>
+                    <input type="hidden" name="WarningsKey" value="@Model.ShownWarningsKey" />
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="AcknowledgeWarnings" name="AcknowledgeWarnings" value="true" checked="@Model.AcknowledgeWarnings" />
+                        <label class="form-check-label" for="AcknowledgeWarnings">Đã xem cảnh báo, đã tư vấn cho khách, vẫn bán</label>
+                    </div>
+                    </div>
+            }
+
+            <dl class="pm-dl mb-0">
+                <dt>Tiền hàng</dt><dd class="text-end num" data-pm-subtotal>—</dd>
+                <dt>Khuyến mãi</dt><dd class="text-end num" data-pm-promo>—</dd>
+            </dl>
+            <div>
+                <label for="ExtraDiscountPercent" class="form-label">Giảm thêm <span class="opt">(% tiền hàng, không bắt buộc)</span></label>
+                <div class="input-group">
+                    <input type="number" id="ExtraDiscountPercent" name="ExtraDiscountPercent" value="@Format.Input(Model.ExtraDiscountPercent)" class="form-control text-end num"
+                           min="0" max="100" step="0.1" inputmode="decimal" autocomplete="off" placeholder="0" data-pm-extra-pct />
+                    <span class="input-group-text">%</span>
+                </div>
+                <span asp-validation-for="ExtraDiscountPercent" class="field-validation-error"></span>
+                <div class="small mt-1 num" data-pm-extra-amount></div>
+                <div class="form-text" data-pm-extra-hint>
+                    @if (Model.CanExceedDiscountLimit)
+                    {
+                        <text>Bạn được giảm vượt @Format.Number(Model.MaxDiscountPercent)%.</text>
+                    }
+                    else if (Model.PricePolicyName is null || Model.MaxDiscountPercent == 0)
+                    {
+                        <text>Hiện không áp dụng giảm thêm.</text>
+                    }
+                    else
+                    {
+                        <text>Giảm tối đa @Format.Number(Model.MaxDiscountPercent)%.</text>
+                    }
+                </div>
+            </div>
+            <div class="pm-stat" data-tone="calm">
+                <span class="l">Khách phải trả</span>
+                <span class="v" data-pm-total>—</span>
+                <span class="small text-muted-pm">Giá đã gồm VAT.</span>
+            </div>
+            <div>
+                <label for="Notes" class="form-label">Ghi chú <span class="opt">(không bắt buộc)</span></label>
+                <textarea id="Notes" name="Notes" class="form-control" rows="2" maxlength="500">@Model.Notes</textarea>
+                <span asp-validation-for="Notes" class="field-validation-error"></span>
+            </div>
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-receipt" aria-hidden="true"></i> @(Model.IsEdit ? "Lưu, sang thu tiền" : "Lưu hóa đơn, sang thu tiền")</button>
+            @if (Model.IsEdit)
+            {
+                <a class="btn btn-outline-secondary w-100" asp-action="Details" asp-route-id="@Model.InvoiceId">Quay lại thu tiền, không đổi gì</a>
+            }
+        </section>
+    </div>
+</form>
+
+@if (Model.CanCreateCustomer)
+{
+    @* ---------------- Thêm nhanh khách hàng (1.2.2) — form riêng, gửi bằng pos.js, không tải lại trang ---------------- *@
+    <div class="modal fade" id="quick-customer" tabindex="-1" aria-labelledby="qc-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="QuickCustomer" method="post" data-pm-quick-customer
+                  data-pm-customer-url="@Url.Action("Details", "Customers", new { area = "Catalog", id = "__id__" })" novalidate>
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="qc-title">Thêm khách hàng mới</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body d-flex flex-column gap-3">
+                    <div class="pm-alert bad" role="alert" data-pm-qc-error hidden></div>
+                    <div>
+                        <label for="qc-name" class="form-label">Họ tên <span class="req">*</span></label>
+                        <input type="text" id="qc-name" name="FullName" class="form-control" maxlength="150" autocomplete="off" required />
+                    </div>
+                    <div>
+                        <label for="qc-phone" class="form-label">Số điện thoại <span class="opt">(không bắt buộc)</span></label>
+                        <input type="tel" id="qc-phone" name="Phone" class="form-control" maxlength="30" inputmode="tel" autocomplete="off" placeholder="0912 345 678" />
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label for="qc-gender" class="form-label">Giới tính</label>
+                            <select id="qc-gender" name="Gender" class="form-select">
+                                <option value="">— Không ghi —</option>
+                                <option value="1">Nam</option>
+                                <option value="2">Nữ</option>
+                                <option value="3">Khác</option>
+                            </select>
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="qc-dob" class="form-label">Ngày sinh</label>
+                            <input type="date" id="qc-dob" name="DateOfBirth" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
+                        </div>
+                    </div>
+                    <p class="form-text mb-0">Dị ứng, bệnh nền ghi ở hồ sơ khách hàng.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-primary" data-pm-qc-submit>Thêm và chọn khách này</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
