@@ -1,0 +1,255 @@
+﻿@model ReturnFormViewModel
+@{
+    ViewData["Title"] = "Đổi trả hóa đơn " + Model.InvoiceCode;
+    var open = Model.BlockedReason is null;
+    // Quản lý: lập phiếu hoàn tiền. Dược sĩ: ghi số lượng, lý do rồi gửi yêu cầu (nếu hóa đơn chưa có yêu cầu đang chờ).
+    var editable = open && (Model.CanProcess || (Model.CanRequest && Model.PendingRequest is null));
+    var formLines = Model.Lines.ToDictionary(l => l.InvoiceDetailId);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Đổi trả</a> / <a asp-action="Lookup">Tiếp nhận</a> / @Model.InvoiceCode</p>
+        <h1 class="pm-title">Đổi trả hóa đơn @Model.InvoiceCode</h1>
+        <p class="pm-subtitle num">Mua lúc @Format.When(Model.SoldAt) · chỉ đổi trả trong ngày mua.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-controller="Invoices" asp-action="Details" asp-route-id="@Model.InvoiceId"><i class="bi bi-receipt" aria-hidden="true"></i> Mở trang hóa đơn</a>
+</div>
+
+@if (!open)
+{
+    <div class="pm-alert warn mb-4" role="alert"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> @Model.BlockedReason</div>
+}
+else if (Model.Request is not null)
+{
+    <div class="pm-alert calm mb-4" role="status">
+        <p class="fw-semibold mb-1"><i class="bi bi-person-raised-hand" aria-hidden="true"></i> Yêu cầu của @Model.Request.RequestedBy · gửi lúc @Model.Request.RequestedAt.ToString("HH:mm", CultureInfo.InvariantCulture)</p>
+        <div class="small">Lý do khách nói: @Model.Request.Reason</div>
+        <div class="small text-muted-pm mt-1">Số lượng dược sĩ ghi đã điền sẵn bên dưới. Kiểm tra hàng, sửa nếu cần rồi hoàn tiền — hoặc từ chối yêu cầu.</div>
+    </div>
+}
+else if (Model.PendingRequest is not null && !Model.CanProcess)
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-hourglass-split" aria-hidden="true"></i> Đã gửi yêu cầu đổi trả lúc @Model.PendingRequest.RequestedAt.ToString("HH:mm", CultureInfo.InvariantCulture). Đang chờ quản lý xử lý.</div>
+}
+else if (Model.PendingRequest is not null && Model.CanProcess)
+{
+    <div class="pm-alert calm mb-4" role="status">
+        <i class="bi bi-person-raised-hand" aria-hidden="true"></i> Hóa đơn này có yêu cầu đổi trả của @Model.PendingRequest.RequestedBy.
+        <a asp-action="Create" asp-route-id="@Model.InvoiceId" asp-route-request="@Model.PendingRequest.RequestId" class="fw-semibold">Mở yêu cầu</a>
+    </div>
+}
+else if (Model.CanRequest)
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> Ghi số lượng khách muốn trả và lý do, rồi gửi yêu cầu cho quản lý kiểm tra hàng và hoàn tiền.</div>
+}
+
+@* ---------------- Hóa đơn gốc (đầy đủ) ---------------- *@
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="inv-head">
+            <h2 id="inv-head" class="pm-h2 mb-3">Hóa đơn @Model.InvoiceCode</h2>
+            <dl class="pm-dl mb-0">
+                <dt>Mua lúc</dt><dd class="num">@Format.When(Model.SoldAt)</dd>
+                <dt>Khách hàng</dt><dd>@(Model.CustomerName ?? "Khách lẻ")@(Model.CustomerPhone is null ? "" : " · " + Model.CustomerPhone)</dd>
+                <dt>Người bán</dt><dd>@Model.SellerName</dd>
+                <dt>Ca</dt><dd class="num">@Model.ShiftCode</dd>
+                <dt>Loại</dt><dd>@(Model.PrescriptionCode is null ? "Bán lẻ" : "Bán theo đơn " + Model.PrescriptionCode)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="inv-money">
+            <h2 id="inv-money" class="pm-h2 mb-3">Tiền hóa đơn</h2>
+            <dl class="pm-dl">
+                <dt>Tiền hàng</dt><dd class="text-end num">@Format.Money(Model.SubTotal)</dd>
+                <dt>Giảm giá</dt><dd class="text-end num">@(Model.DiscountAmount > 0 ? "−" + Format.Money(Model.DiscountAmount) : "0 đ")</dd>
+                <dt>Khách đã trả</dt><dd class="text-end num fw-semibold">@Format.Money(Model.InvoiceTotal)</dd>
+            </dl>
+            @if (Model.Payments.Count > 0)
+            {
+                <ul class="pm-plain-list small mb-0">
+                    @foreach (var p in Model.Payments)
+                    {
+                        <li class="d-flex justify-content-between gap-2">
+                            <span>@PaymentMethodText.Of(p.Method)@(p.Reference is null ? "" : " · " + p.Reference)</span>
+                            <span class="num">@Format.Money(p.Amount)</span>
+                        </li>
+                    }
+                </ul>
+            }
+        </section>
+    </div>
+</div>
+
+<form asp-action="@(Model.CanProcess ? "Create" : "SendRequest")" asp-route-id="@Model.InvoiceId" method="post" class="row g-4 align-items-start"
+      data-pm-return-form data-pm-has-shift="@(Model.HasOpenShift ? "true" : "false")" novalidate>
+    <div class="col-12">
+        <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+    </div>
+    @if (Model.RequestId is not null)
+    {
+        <input type="hidden" name="RequestId" value="@Model.RequestId" />
+    }
+
+    <div class="col-xl-8">
+        <section class="pm-card" aria-labelledby="sec-lines">
+            <h2 id="sec-lines" class="pm-h2 mb-1">Thuốc trên hóa đơn</h2>
+            <p class="small text-muted-pm mb-3">Tiền hoàn tính theo số khách đã trả cho thuốc đó (đã trừ khuyến mãi, giảm giá).</p>
+            <div class="table-responsive">
+                <table class="pm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Thuốc</th>
+                            <th scope="col" class="text-end">SL mua</th>
+                            <th scope="col" class="text-end">Đơn giá</th>
+                            <th scope="col" class="text-end">Giảm</th>
+                            <th scope="col" class="text-end">Thành tiền</th>
+                            <th scope="col" class="text-end">Đã trả</th>
+                            @if (editable)
+                            {
+                                <th scope="col" style="min-width: 110px">Số trả</th>
+                                <th scope="col" style="min-width: 200px">Tình trạng hàng</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < Model.InvoiceLines.Count; i++)
+                        {
+                            var l = Model.InvoiceLines[i];
+                            formLines.TryGetValue(l.InvoiceDetailId, out var f);
+                            <tr data-pm-return-line data-unit="@Format.Input(l.UnitRefundPrice)" data-remaining="@Format.Input(l.Remaining)" data-rest="@Format.Input(l.LineTotal - l.RefundedAmount)">
+                                <td>
+                                    <span class="fw-semibold">@l.MedicineName</span>
+                                    <div class="small text-muted-pm num">@l.MedicineCode · hoàn @Format.Money(l.UnitRefundPrice)/@l.UnitName</div>
+                                </td>
+                                <td class="text-end num text-nowrap">@Format.Number(l.SoldQuantity) @l.UnitName</td>
+                                <td class="text-end num text-nowrap">@Format.Money(l.UnitPrice)</td>
+                                <td class="text-end num text-nowrap">@(l.DiscountAmount > 0 ? "−" + Format.Money(l.DiscountAmount) : "—")</td>
+                                <td class="text-end num text-nowrap">@Format.Money(l.LineTotal)</td>
+                                <td class="text-end num text-nowrap">@(l.ReturnedQuantity > 0 ? Format.Number(l.ReturnedQuantity) + " " + l.UnitName : "—")</td>
+                                @if (editable)
+                                {
+                                    <td>
+                                        <input type="hidden" name="Lines[@i].InvoiceDetailId" value="@l.InvoiceDetailId" />
+                                        @if (l.Remaining > 0)
+                                        {
+                                            <input type="number" name="Lines[@i].Quantity" value="@f?.Quantity" class="form-control text-end" min="0" max="@Format.Input(l.Remaining)" step="1"
+                                                   inputmode="numeric" placeholder="0" aria-label="Số @l.UnitName trả — @l.MedicineName" data-pm-return-qty />
+                                            <div class="small text-muted-pm mt-1 num">tối đa @Format.Number(l.Remaining)</div>
+                                        }
+                                        else
+                                        {
+                                            <span class="small text-muted-pm">Đã trả hết</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (l.Remaining > 0)
+                                        {
+                                            <input type="text" name="Lines[@i].ConditionNote" value="@f?.ConditionNote" class="form-control" maxlength="300" autocomplete="off"
+                                                   placeholder="Ví dụ: còn nguyên vỉ, nguyên tem" aria-label="Tình trạng hàng — @l.MedicineName" />
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <div class="col-xl-4 pm-sale-summary">
+        <section class="pm-card d-flex flex-column gap-3" aria-labelledby="sec-act">
+            <h2 id="sec-act" class="pm-h2">@(Model.CanProcess ? "Hoàn tiền" : "Yêu cầu đổi trả")</h2>
+            @if (!string.IsNullOrWhiteSpace(Model.ReturnConditions))
+            {
+                <div class="pm-alert calm mb-0">
+                    <p class="fw-semibold mb-1">Điều kiện đổi trả</p>
+                    <div class="small pm-pre">@Model.ReturnConditions</div>
+                </div>
+            }
+
+            @if (editable)
+            {
+                <div>
+                    <label asp-for="Reason" class="form-label">Lý do khách trả <span class="req">*</span></label>
+                    <textarea asp-for="Reason" class="form-control" rows="2" maxlength="500" placeholder="Ví dụ: khách mua nhầm thuốc"></textarea>
+                    <span asp-validation-for="Reason" class="field-validation-error"></span>
+                </div>
+                @if (Model.CanProcess)
+                {
+                    <fieldset>
+                        <legend class="form-label">Hoàn tiền bằng</legend>
+                        <div class="pm-seg" role="radiogroup">
+                            <label><input type="radio" name="RefundMethod" value="@((byte)PaymentMethod.Cash)" checked="@(Model.RefundMethod == (byte)PaymentMethod.Cash)" /> Tiền mặt</label>
+                            <label><input type="radio" name="RefundMethod" value="@((byte)PaymentMethod.BankTransfer)" checked="@(Model.RefundMethod == (byte)PaymentMethod.BankTransfer)" /> Chuyển khoản</label>
+                            <label><input type="radio" name="RefundMethod" value="@((byte)PaymentMethod.Card)" checked="@(Model.RefundMethod == (byte)PaymentMethod.Card)" /> Thẻ</label>
+                        </div>
+                        <div class="small text-danger mt-1" data-pm-cash-noshift hidden>Bạn chưa mở ca — hoàn tiền mặt cần ca đang mở.</div>
+                    </fieldset>
+                    <div data-pm-refund-ref>
+                        <label asp-for="RefundReference" class="form-label">Mã giao dịch hoàn tiền <span class="req">*</span></label>
+                        <input asp-for="RefundReference" class="form-control" maxlength="100" autocomplete="off" />
+                        <span asp-validation-for="RefundReference" class="field-validation-error"></span>
+                    </div>
+                }
+                <div class="pm-stat" data-tone="calm">
+                    <span class="l">@(Model.CanProcess ? "Tiền hoàn cho khách" : "Tiền hoàn dự kiến")</span>
+                    <span class="v" data-pm-refund-total>0 đ</span>
+                </div>
+                @if (Model.CanProcess)
+                {
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> Hoàn tiền, lập phiếu</button>
+                    <p class="form-text mb-0">Hàng khách trả để riêng, chờ nhập lại kho ở trang phiếu.</p>
+                }
+                else
+                {
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-send" aria-hidden="true"></i> Gửi yêu cầu đổi trả</button>
+                    <p class="form-text mb-0">Quản lý sẽ thấy yêu cầu ở trang Đổi trả, kiểm tra hàng và hoàn tiền cho khách.</p>
+                }
+            }
+            else if (open && !Model.CanProcess && !Model.CanRequest)
+            {
+                <p class="mb-0 text-muted-pm">Bạn chỉ xem được hóa đơn này.</p>
+            }
+        </section>
+
+        @if (Model.Request is not null)
+        {
+            <section class="pm-card mt-4" aria-labelledby="sec-reject">
+                <h2 id="sec-reject" class="pm-h2 mb-2">Từ chối yêu cầu</h2>
+                <p class="small text-muted-pm">Hàng không đủ điều kiện đổi trả thì từ chối và ghi lý do để dược sĩ báo lại khách.</p>
+                <button type="button" class="btn btn-outline-secondary w-100" data-bs-toggle="modal" data-bs-target="#reject-modal">Từ chối yêu cầu</button>
+            </section>
+        }
+    </div>
+</form>
+
+@if (Model.Request is not null)
+{
+    <div class="modal fade" id="reject-modal" tabindex="-1" aria-labelledby="reject-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="RejectRequest" method="post" novalidate>
+                <input type="hidden" name="requestId" value="@Model.Request.RequestId" />
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="reject-title">Từ chối yêu cầu đổi trả?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="reject-reason" class="form-label">Lý do từ chối <span class="req">*</span></label>
+                    <input type="text" id="reject-reason" name="reason" class="form-control" maxlength="300" autocomplete="off" placeholder="Ví dụ: bao bì đã mở, không đủ điều kiện" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="submit" class="btn btn-danger">Từ chối</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/returns.js" asp-append-version="true"></script>
+}

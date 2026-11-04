@@ -327,6 +327,13 @@ public sealed class InvoiceDetailsViewModel
     /// <summary>Quay lại sửa thuốc: hóa đơn chờ thanh toán của chính người dùng, ca còn mở, có quyền lập hóa đơn.</summary>
     public bool CanEdit { get; set; }
     public bool CanCancel { get; set; }
+
+    /// <summary>Đổi trả (3.4): hóa đơn đã thanh toán trong ngày, còn thuốc chưa trả, có quyền tiếp nhận — controller điền.</summary>
+    public bool CanReturn { get; set; }
+
+    /// <summary>Các lần khách trả hàng của hóa đơn — controller điền.</summary>
+    public IReadOnlyList<InvoiceReturnInfo> Returns { get; set; } = Array.Empty<InvoiceReturnInfo>();
+
     public PaymentPermissions Permissions { get; set; } = new(false, false, false);
 
     /// <summary>Dữ liệu ô thanh toán (giữ lại khi báo lỗi).</summary>

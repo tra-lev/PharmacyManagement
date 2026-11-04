@@ -36,6 +36,10 @@
                     {
                         <span class="pm-soon">Sắp có</span>
                     }
+                    else if (item.Badge > 0)
+                    {
+                        <span class="pm-badge warn ms-auto" title="Đang chờ xử lý">@item.Badge</span>
+                    }
                 </a>
             }
         </div>

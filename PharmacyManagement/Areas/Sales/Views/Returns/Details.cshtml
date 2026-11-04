@@ -1,0 +1,134 @@
+﻿@model ReturnDetailsViewModel
+@{
+    ViewData["Title"] = "Phiếu đổi trả " + Model.Code;
+    string D(DateOnly d) => d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+    var pending = Model.Lines.Count(l => l.RestockStatus == (byte)RestockStatus.Pending);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Đổi trả</a> / @Model.Code</p>
+        <h1 class="pm-title">Phiếu đổi trả @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @ReturnStatusText.Tone(Model.Status)">@ReturnStatusText.Of(Model.Status)</span>
+        </div>
+    </div>
+    <a class="btn btn-outline-secondary" asp-controller="Invoices" asp-action="Details" asp-route-id="@Model.InvoiceId"><i class="bi bi-receipt" aria-hidden="true"></i> Hóa đơn @Model.InvoiceCode</a>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="d-head">
+            <h2 id="d-head" class="pm-h2 mb-3">Thông tin phiếu</h2>
+            <dl class="pm-dl">
+                <dt>Ngày lập</dt><dd class="num">@Format.When(Model.ReturnDate)</dd>
+                <dt>Hóa đơn gốc</dt><dd><a asp-controller="Invoices" asp-action="Details" asp-route-id="@Model.InvoiceId" class="num">@Model.InvoiceCode</a></dd>
+                <dt>Khách hàng</dt><dd>@(Model.CustomerName ?? "Khách lẻ")</dd>
+                <dt>Người xử lý</dt><dd>@Model.ProcessedByName</dd>
+                <dt>Lý do</dt><dd class="pm-pre">@Model.Reason</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="d-money">
+            <h2 id="d-money" class="pm-h2 mb-3">Hoàn tiền</h2>
+            <div class="pm-stat mb-3" data-tone="calm">
+                <span class="l">Đã hoàn cho khách</span>
+                <span class="v">@Format.Money(Model.RefundAmount)</span>
+            </div>
+            <dl class="pm-dl mb-0">
+                <dt>Hình thức</dt><dd>@PaymentMethodText.Of(Model.RefundMethod)</dd>
+                @if (Model.RefundReference is not null)
+                {
+                    <dt>Mã giao dịch</dt><dd class="num">@Model.RefundReference</dd>
+                }
+                @if (Model.ShiftCode is not null)
+                {
+                    <dt>Trừ vào ca</dt><dd class="num">@Model.ShiftCode</dd>
+                }
+            </dl>
+        </section>
+    </div>
+</div>
+
+<section class="pm-card" aria-labelledby="d-lines">
+    <h2 id="d-lines" class="pm-h2 mb-1">Hàng khách trả</h2>
+    <p class="small text-muted-pm mb-3">
+        @if (pending > 0)
+        {
+            <text>Còn @pending dòng chờ nhập lại kho. Kiểm tra hàng rồi chọn Nhập lại (vào lô đã bán ra) hoặc Không nhập.</text>
+        }
+        else
+        {
+            <text>Đã xử lý xong toàn bộ hàng trả.</text>
+        }
+    </p>
+    <div class="d-flex flex-column gap-3">
+        @foreach (var l in Model.Lines)
+        {
+            <div class="pm-inner">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                        <span class="fw-semibold">@l.MedicineName</span>
+                        <div class="small text-muted-pm num">
+                            @l.MedicineCode · trả @Format.Number(l.Quantity) @l.UnitName@(l.BaseQuantity != l.Quantity ? " (= " + Format.Number(l.BaseQuantity) + " " + l.BaseUnitName + ")" : "")
+                            · hoàn @Format.Money(l.RefundAmount)
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(l.ConditionNote))
+                        {
+                            <div class="small pm-pre mt-1">@l.ConditionNote</div>
+                        }
+                    </div>
+                    <div class="text-end">
+                        <span class="pm-badge @ReturnStatusText.RestockTone(l.RestockStatus)">@ReturnStatusText.RestockOf(l.RestockStatus)</span>
+                        @if (l.BatchNumber is not null)
+                        {
+                            <div class="small text-muted-pm mt-1 num">Lô @l.BatchNumber</div>
+                        }
+                    </div>
+                </div>
+
+                @if (Model.CanRestock && l.RestockStatus == (byte)RestockStatus.Pending && Model.Status == (byte)ReturnStatus.RefundedPendingRestock)
+                {
+                    var usable = l.Batches.Where(b => b.Usable).ToList();
+                    <div class="row g-3 mt-1">
+                        <div class="col-lg-7">
+                            <form asp-action="Restock" asp-route-id="@Model.ReturnId" method="post" class="d-flex flex-column gap-2" novalidate>
+                                <input type="hidden" name="ReturnDetailId" value="@l.ReturnDetailId" />
+                                <input type="hidden" name="Decision" value="restock" />
+                                <label class="form-label mb-0" for="batch-@l.ReturnDetailId">Nhập lại vào lô</label>
+                                <select id="batch-@l.ReturnDetailId" name="BatchId" class="form-select" disabled="@(usable.Count == 0)">
+                                    @foreach (var b in l.Batches)
+                                    {
+                                        <!option value="@b.BatchId" disabled="@(!b.Usable)" selected="@(b.BatchId == usable.FirstOrDefault()?.BatchId)">
+                                            Lô @b.BatchNumber · HSD @D(b.ExpiryDate)@(b.Problem is null ? "" : " — " + b.Problem)
+                                        </!option>
+                                    }
+                                </select>
+                                <input type="text" name="Note" class="form-control" maxlength="300" autocomplete="off" placeholder="Ghi chú khi nhập (không bắt buộc)" aria-label="Ghi chú khi nhập lại" />
+                                <div>
+                                    <button type="submit" class="btn btn-primary btn-sm" disabled="@(usable.Count == 0)"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> Nhập lại kho</button>
+                                </div>
+                                @if (usable.Count == 0)
+                                {
+                                    <span class="small text-danger">Không còn lô nào nhập lại được — chọn Không nhập.</span>
+                                }
+                            </form>
+                        </div>
+                        <div class="col-lg-5">
+                            <form asp-action="Restock" asp-route-id="@Model.ReturnId" method="post" class="d-flex flex-column gap-2" novalidate>
+                                <input type="hidden" name="ReturnDetailId" value="@l.ReturnDetailId" />
+                                <input type="hidden" name="Decision" value="reject" />
+                                <label class="form-label mb-0" for="reject-@l.ReturnDetailId">Không nhập lại <span class="req">*</span></label>
+                                <input type="text" id="reject-@l.ReturnDetailId" name="Note" class="form-control" maxlength="300" required autocomplete="off" placeholder="Lý do, ví dụ: bao bì đã mở" />
+                                <div>
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Không nhập</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</section>
