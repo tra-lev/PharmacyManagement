@@ -55,6 +55,8 @@ public sealed class CustomerListViewModel
     public CustomerFilter Filter { get; init; } = new();
     public IReadOnlyList<CustomerRow> Rows { get; init; } = Array.Empty<CustomerRow>();
     public int Total { get; init; }
+    /// <summary>Tổng số bản ghi trong CSDL (mọi trạng thái, không theo bộ lọc) — hiện "Tìm thấy X / Y".</summary>
+    public int GrandTotal { get; init; }
     public int PageCount { get; init; }
 }
 

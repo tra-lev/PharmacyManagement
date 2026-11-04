@@ -1,0 +1,140 @@
+﻿@model ShiftListViewModel
+@{
+    ViewData["Title"] = "Ca toàn nhà thuốc";
+    var f = Model.Filter;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+    string PageUrl(int page) => Url.Action("All", new { f.Q, f.EmployeeId, f.Status, page })!;
+    var filtered = f.Q is not null || f.EmployeeId is not null || f.Status is not null;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Ca làm việc</a> / Ca toàn nhà thuốc</p>
+        <h1 class="pm-title">Ca toàn nhà thuốc</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (filtered)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) ca</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) ca</text>
+            }</span> · ca của mọi nhân viên, chỉ xem. Tìm theo mã ca hoặc họ tên nhân viên; gõ không dấu cũng được.</p>
+    </div>
+</div>
+
+<form method="get" asp-action="All" class="pm-card pm-filter mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm ca</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã ca, họ tên nhân viên…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="emp" class="visually-hidden">Nhân viên</label>
+        <select id="emp" name="EmployeeId" class="form-select">
+            <option value="">Tất cả nhân viên</option>
+            @foreach (var e in Model.Employees)
+            {
+                <!option value="@e.EmployeeId" selected="@(f.EmployeeId == e.EmployeeId)">@e.Name</!option>
+            }
+        </select>
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi trạng thái</!option>
+            <!option value="open" selected="@(f.Status == "open")">Đang mở</!option>
+            <!option value="handedover" selected="@(f.Status == "handedover")">Đã bàn giao</!option>
+            <!option value="closed" selected="@(f.Status == "closed")">Đã chốt</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (filtered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="All">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Danh sách ca" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-clock" aria-hidden="true"></i>
+            @(f.Q is null ? "Chưa có ca nào khớp bộ lọc." : $"Không tìm thấy ca khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Ca</th>
+                        <th scope="col">Nhân viên</th>
+                        <th scope="col" class="text-end">Theo sổ</th>
+                        <th scope="col" class="text-end">Thực đếm</th>
+                        <th scope="col" class="text-end">Chênh lệch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@r.ShiftId">@r.Code</a>
+                                <div class="small text-muted-pm num">@Format.When(r.OpenedAt)@(r.ClosedAt is null ? "" : " → " + Format.When(r.ClosedAt.Value))</div>
+                            </td>
+                            <td class="small">
+                                @r.EmployeeName
+                                <div><span class="pm-badge @ShiftStatusText.Tone(r.Status)">@ShiftStatusText.Of(r.Status)</span></div>
+                            </td>
+                            @if (r.ExpectedCash is null)
+                            {
+                                <td class="text-end small text-muted-pm" colspan="3">Chưa chốt tiền</td>
+                            }
+                            else
+                            {
+                                <td class="text-end num text-nowrap">@Format.Money(r.ExpectedCash)</td>
+                                <td class="text-end num text-nowrap">@Format.Money(r.ActualCash)</td>
+                                <td class="text-end num text-nowrap">
+                                    @if (r.Difference == 0)
+                                    {
+                                        <span class="pm-badge good">Khớp</span>
+                                    }
+                                    else if (r.Difference is not null)
+                                    {
+                                        <span class="pm-badge @(r.Difference > 0 ? "warn" : "bad")">@(r.Difference > 0 ? "Thừa" : "Thiếu") @Format.Money(Math.Abs(r.Difference.Value))</span>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Thuốc";
     var f = Model.Filter;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
     string PageUrl(int page) => Url.Action("Index", new { f.Q, f.CategoryId, f.Type, f.Status, page })!;
 }
 
@@ -9,7 +10,18 @@
     <div>
         <p class="pm-crumbs">Danh mục</p>
         <h1 class="pm-title">Thuốc</h1>
-        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@Model.Total.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) thuốc</span> · tìm theo tên, mã, mã vạch hoặc hoạt chất; gõ không dấu cũng được.</p>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (f.Q is not null || f.CategoryId is not null || f.Type is not null || f.Status == "inactive")
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) thuốc</text>
+            }
+            else if (Model.Total == Model.GrandTotal)
+            {
+                <text>@N(Model.GrandTotal) thuốc</text>
+            }
+            else
+            {
+                <text>@N(Model.Total) đang kinh doanh / @N(Model.GrandTotal) thuốc</text>
+            }</span> · tìm theo tên, mã, mã vạch hoặc hoạt chất; gõ không dấu cũng được.</p>
     </div>
     @if (Model.CanCreate)
     {

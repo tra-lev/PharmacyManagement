@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using PharmacyManagement.Infrastructure;
 
 namespace PharmacyManagement.Models.ViewModels.Catalog;
 
@@ -45,6 +46,8 @@ public sealed class MedicineListViewModel
     public MedicineFilter Filter { get; init; } = new();
     public IReadOnlyList<MedicineRow> Rows { get; init; } = Array.Empty<MedicineRow>();
     public int Total { get; init; }
+    /// <summary>Tổng số bản ghi trong CSDL (mọi trạng thái, không theo bộ lọc) — hiện "Tìm thấy X / Y".</summary>
+    public int GrandTotal { get; init; }
     public int PageCount { get; init; }
     public IReadOnlyList<LookupItem> Categories { get; init; } = Array.Empty<LookupItem>();
     public bool CanCreate { get; set; }
@@ -73,6 +76,8 @@ public sealed class ConversionLine
     public decimal? ConversionToBase { get; set; }
 
     /// <summary>Trống = tự tính theo giá đơn vị cơ sở × hệ số.</summary>
+    [Money]
+    [Display(Name = "Giá bán của đơn vị quy đổi")]
     public decimal? SellingPrice { get; set; }
 
     public bool IsDefaultSaleUnit { get; set; }
@@ -138,9 +143,11 @@ public sealed class MedicineFormViewModel
     [Display(Name = "Đơn vị cơ sở")]
     public int? BaseUnitId { get; set; }
 
+    [Money]
     [Display(Name = "Giá nhập")]
     public decimal? DefaultPurchasePrice { get; set; }
 
+    [Money]
     [Display(Name = "Giá bán")]
     public decimal? DefaultSellingPrice { get; set; }
 

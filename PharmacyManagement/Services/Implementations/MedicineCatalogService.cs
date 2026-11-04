@@ -88,6 +88,7 @@ public sealed class MedicineCatalogService : IMedicineCatalogService
         {
             Filter = filter,
             Total = total,
+            GrandTotal = await _db.Medicines.CountAsync(ct),
             PageCount = pageCount,
             Rows = page.Select(p => new MedicineRow(p.MedicineId, p.MedicineCode, p.MedicineName, p.Strength, p.DosageForm,
                 p.CategoryName, p.BaseUnitName, p.DefaultSellingPrice, p.IsPrescription, p.IsControlledDrug, p.IsActive,

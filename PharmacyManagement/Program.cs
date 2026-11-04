@@ -21,7 +21,11 @@ var builder = WebApplication.CreateBuilder(isOwnerRecovery ? Array.Empty<string>
 // ---- CSDL (Database-first: PharmacyDbContext do tools\02-scaffold.ps1 sinh ra) ----
 var connectionString = builder.Configuration.GetConnectionString("PharmacyDb")
     ?? throw new InvalidOperationException("Thiếu ConnectionStrings:PharmacyDb trong appsettings.json hoặc User Secrets.");
-builder.Services.AddDbContext<PharmacyDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddDbContext<PharmacyDbContext>(options => options
+    .UseSqlServer(connectionString)
+    // Data/PharmacyDbContext.Custom.cs cố ý bỏ điều hướng Employee.Shift do scaffold sinh nhầm (1–1 → 1–nhiều, DEC-27);
+    // chỉ tắt đúng cảnh báo đó, các cảnh báo khác của EF vẫn hiện.
+    .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.MappedNavigationIgnoredWarning)));
 
 // ---- Identity: 3 vai trò cố định, mỗi email một tài khoản, mật khẩu băm ----
 builder.Services
@@ -87,12 +91,16 @@ builder.Services.AddScoped<UserNameSyncService>();
 builder.Services.AddScoped<IMedicineCatalogService, MedicineCatalogService>();
 builder.Services.AddScoped<ISupplierService, SupplierService>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
+builder.Services.AddScoped<IShiftService, ShiftService>();
+builder.Services.AddScoped<IGoodsReceiptService, GoodsReceiptService>();
 
 builder.Services.AddControllersWithViews(o =>
 {
     o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
     // Ô số (input type=number) luôn gửi dấu chấm thập phân; văn hóa vi-VN coi dấu chấm là phân cách nghìn → đọc số theo InvariantCulture.
     o.ModelBinderProviders.Insert(0, new InvariantDecimalModelBinderProvider());
+    // Ô tiền ([Money]) gõ dạng 200.000 → binder riêng, đặt trước binder số thập phân ở trên.
+    o.ModelBinderProviders.Insert(0, new MoneyModelBinderProvider());
     // Thông báo lỗi ràng buộc dữ liệu bằng tiếng Việt (mặc định là tiếng Anh).
     var m = o.ModelBindingMessageProvider;
     m.SetValueMustBeANumberAccessor(field => $"{field} phải là số.");

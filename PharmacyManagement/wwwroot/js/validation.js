@@ -26,6 +26,27 @@
     options.rules.pmpassword = parseInt(options.params.min, 10) || 8;
   });
 
+  // ---- Số tiền: ô data-pm-money (khớp Infrastructure/MoneyModelBinder.cs — MoneyAttribute) ----
+  // Ô hiện dạng 200.000 → bỏ dấu chấm, dấu phẩy, khoảng trắng, chữ đ rồi mới so khoảng giá trị.
+  function moneyValue(value) {
+    var digits = String(value).replace(/[\s.,đĐ]/g, '');
+    return /^\d+$/.test(digits) ? Number(digits) : NaN;
+  }
+
+  $.validator.addMethod('pmmoney', function (value, element, range) {
+    if (this.optional(element)) return true;
+    var amount = moneyValue(value);
+    return !isNaN(amount) && amount >= range.min && amount <= range.max;
+  });
+
+  $.validator.unobtrusive.adapters.add('pmmoney', ['min', 'max'], function (options) {
+    options.rules.pmmoney = {
+      min: Number(options.params.min) || 0,
+      max: options.params.max === undefined ? Infinity : Number(options.params.max)
+    };
+    options.messages.pmmoney = options.message;
+  });
+
   // ---- Báo lỗi ngay khi gõ (mặc định thư viện chỉ báo sau lần bấm gửi đầu tiên) ----
   // Ô có data-pm-lazy (ô mã 6 số) giữ cách cũ: báo khi rời ô hoặc khi gửi, để không đỏ ngay từ chữ số đầu.
   var ignoredKeys = [16, 17, 18, 20, 35, 36, 37, 38, 39, 40, 45, 144, 225];

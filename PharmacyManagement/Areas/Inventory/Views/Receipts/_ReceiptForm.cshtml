@@ -1,0 +1,227 @@
+﻿@model ReceiptFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+    var medicines = Model.MedicineOptions.ToDictionary(m => m.MedicineId);
+    // Dữ liệu cho receipt.js: đơn vị nhập được của từng thuốc, giá nhập tham khảo / đơn vị cơ sở
+    var medicineData = Model.MedicineOptions.ToDictionary(
+        m => m.MedicineId.ToString(CultureInfo.InvariantCulture),
+        m => new { price = m.PurchasePricePerBase, units = m.Units.Select(u => new { id = u.UnitId, name = u.UnitName, factor = u.Factor }) });
+    string MoneyHint(MedicineOption? med, int? unitId)
+    {
+        if (med is null || med.PurchasePricePerBase <= 0) return "Đơn giá";
+        var factor = med.Units.FirstOrDefault(u => u.UnitId == unitId)?.Factor ?? 1m;
+        return "Tham khảo " + Format.MoneyInput(Math.Round(med.PurchasePricePerBase * factor));
+    }
+
+    void LineFields(ReceiptLineForm l, string idx, MedicineOption? med)
+    {
+        var p = "Lines[" + idx + "].";
+        var fromOrder = l.PurchaseOrderDetailId is not null;
+        <div class="pm-inner" data-pm-row data-pm-receipt-line>
+            <input type="hidden" name="Lines.Index" value="@idx" />
+            <div class="row g-2">
+                @if (fromOrder)
+                {
+                    <input type="hidden" name="@(p)PurchaseOrderDetailId" value="@l.PurchaseOrderDetailId" />
+                    <input type="hidden" name="@(p)MedicineId" value="@l.MedicineId" />
+                    <input type="hidden" name="@(p)UnitId" value="@l.UnitId" />
+                    <div class="col-lg-6">
+                        <span class="form-label d-block">Thuốc (theo đơn)</span>
+                        <div class="form-control pm-readonly">@(l.MedicineLabel ?? "—")</div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <span class="form-label d-block">Đơn vị nhập</span>
+                        <div class="form-control pm-readonly">@(l.UnitName ?? "—")</div>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <span class="form-label d-block">Đối chiếu đơn</span>
+                        <div class="small text-muted-pm pt-2 num">
+                            Đặt @Format.Number(l.OrderedQuantity ?? 0) · đã nhận @Format.Number(l.AlreadyReceived ?? 0) · còn <strong class="text-reset">@Format.Number((l.OrderedQuantity ?? 0) - (l.AlreadyReceived ?? 0))</strong>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="col-lg-6">
+                        <label class="form-label" for="@(idx)-med">Thuốc <span class="req">*</span></label>
+                        <select id="@(idx)-med" name="@(p)MedicineId" class="form-select" data-pm-medicine
+                                data-pm-combobox data-pm-combobox-placeholder="Gõ tên, mã thuốc hoặc hoạt chất…" data-pm-combobox-empty="Không tìm thấy thuốc">
+                            <!option value="">— Chọn thuốc —</!option>
+                            @foreach (var m in Model.MedicineOptions)
+                            {
+                                <!option value="@m.MedicineId" data-search="@m.Keywords" selected="@(m.MedicineId == l.MedicineId)">@m.Label</!option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-lg-3">
+                        <label class="form-label" for="@(idx)-unit">Đơn vị nhập <span class="req">*</span></label>
+                        <select id="@(idx)-unit" name="@(p)UnitId" class="form-select" data-pm-unit>
+                            @if (med is null)
+                            {
+                                <!option value="">— Chọn thuốc trước —</!option>
+                            }
+                            else
+                            {
+                                foreach (var u in med.Units)
+                                {
+                                    <!option value="@u.UnitId" data-factor="@Format.Input(u.Factor)" selected="@(u.UnitId == l.UnitId)">@u.UnitName@(u.Factor == 1 ? "" : " (= " + Format.Number(u.Factor) + " " + med.BaseUnitName + ")")</!option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-6 col-lg-3 d-flex align-items-end">
+                        <span class="small text-muted-pm pb-2">Hàng ngoài đơn đặt hàng</span>
+                    </div>
+                }
+
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label" for="@(idx)-qty">Số lượng nhận <span class="req">*</span></label>
+                    <input type="number" id="@(idx)-qty" name="@(p)QuantityReceived" value="@Format.Input(l.QuantityReceived)" class="form-control text-end" min="0" step="any" inputmode="decimal" data-pm-qty />
+                </div>
+                <div class="col-6 col-md-3 col-lg-2">
+                    <label class="form-label" for="@(idx)-dmg">Hỏng</label>
+                    <input type="number" id="@(idx)-dmg" name="@(p)DamagedQuantity" value="@Format.Input(l.DamagedQuantity)" class="form-control text-end" min="0" step="any" inputmode="decimal" placeholder="0" data-pm-damaged />
+                </div>
+                <div class="col-md-6 col-lg-3">
+                    <label class="form-label" for="@(idx)-cost">Đơn giá nhập <span class="req">*</span></label>
+                    <div class="input-group">
+                        <input type="text" id="@(idx)-cost" name="@(p)UnitCost" value="@Format.MoneyInput(l.UnitCost)" class="form-control text-end num" inputmode="numeric" autocomplete="off"
+                               placeholder="@MoneyHint(med, l.UnitId)" data-pm-money data-pm-cost />
+                        <span class="input-group-text">đ</span>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-5">
+                    <span class="form-label d-block">Thành tiền (hàng tốt)</span>
+                    <div class="form-control pm-readonly num justify-content-end" data-pm-line-total>—</div>
+                </div>
+
+                <div class="col-md-4 col-lg-3">
+                    <label class="form-label" for="@(idx)-lot">Số lô</label>
+                    <input type="text" id="@(idx)-lot" name="@(p)BatchNumber" value="@l.BatchNumber" class="form-control" maxlength="60" autocomplete="off" placeholder="AM260422" />
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="form-label" for="@(idx)-mfg">Ngày sản xuất</label>
+                    <input type="date" id="@(idx)-mfg" name="@(p)ManufactureDate" value="@l.ManufactureDate" class="form-control" max="@Model.Today" />
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="form-label" for="@(idx)-exp">Hạn dùng</label>
+                    <input type="date" id="@(idx)-exp" name="@(p)ExpiryDate" value="@l.ExpiryDate" class="form-control" min="@Model.Today" data-pm-expiry />
+                    <span class="small d-block mt-1" data-pm-expiry-note></span>
+                </div>
+                <div class="col-md-12 col-lg-5">
+                    <label class="form-label" for="@(idx)-loc">Kệ xếp thuốc</label>
+                    <select id="@(idx)-loc" name="@(p)LocationId" class="form-select">
+                        <!option value="">— Chọn kệ —</!option>
+                        @foreach (var loc in Model.LocationOptions)
+                        {
+                            <!option value="@loc.Id" selected="@(loc.Id == l.LocationId)">@loc.Name</!option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col">
+                    <label class="form-label" for="@(idx)-note">Ghi chú chất lượng <span class="opt">(bắt buộc khi có hàng hỏng)</span></label>
+                    <input type="text" id="@(idx)-note" name="@(p)QualityNote" value="@l.QualityNote" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: 1 hộp móp, đã báo nhà cung cấp" />
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng thuốc"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<form asp-action="@action" asp-route-id="@Model.GoodsReceiptId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form data-pm-receipt-form
+      data-pm-today="@Model.Today" data-pm-warn-days="@Model.ExpiryWarningDays" novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+    <input type="hidden" name="PurchaseOrderId" value="@Model.PurchaseOrderId" />
+    <script type="application/json" id="pm-receipt-medicines">@Json.Serialize(medicineData)</script>
+
+    @* ---------------- Thông tin phiếu ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-head">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+            <h2 id="sec-head" class="pm-h2">Thông tin phiếu</h2>
+            <span class="small text-muted-pm">Mã phiếu: <strong class="text-reset">@Model.Code</strong>@(Model.IsEdit ? "" : " (dự kiến, tự sinh khi lưu)")</span>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="SupplierId" class="form-label">Nhà cung cấp <span class="req">*</span></label>
+                @if (Model.PurchaseOrderId is not null)
+                {
+                    @* Theo đơn: NCC lấy từ đơn đặt hàng (server luôn dùng NCC của đơn); ô ẩn để qua bước kiểm tra bắt buộc *@
+                    <input type="hidden" name="SupplierId" value="@Model.SupplierId" />
+                    <div id="SupplierId" class="form-control pm-readonly">@Model.SupplierName</div>
+                    <div class="form-text">
+                        Theo đơn đặt hàng <strong>@Model.PurchaseOrderCode</strong>.
+                        @if (!Model.IsEdit)
+                        {
+                            <a asp-action="Create">Bỏ chọn đơn</a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <select asp-for="SupplierId" class="form-select">
+                        <option value="">— Chọn nhà cung cấp —</option>
+                        @foreach (var s in Model.SupplierOptions)
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="SupplierId" class="field-validation-error"></span>
+                }
+            </div>
+            <div class="col-md-6">
+                <label asp-for="SupplierInvoiceNumber" class="form-label">Số hóa đơn của nhà cung cấp <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="SupplierInvoiceNumber" class="form-control" autocomplete="off" placeholder="HDNCC-123456" />
+                <span asp-validation-for="SupplierInvoiceNumber" class="field-validation-error"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label">Ghi chú <span class="opt">(không bắt buộc)</span></label>
+                <textarea asp-for="Notes" class="form-control" rows="2" maxlength="1000"></textarea>
+                <span asp-validation-for="Notes" class="field-validation-error"></span>
+            </div>
+        </div>
+    </section>
+
+    @* ---------------- Hàng nhận (2.2.1.1–2.2.1.3, 2.2.3, 2.2.4) ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-lines">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+            <h2 id="sec-lines" class="pm-h2">Hàng nhận</h2>
+            <span class="small text-muted-pm">Tổng tiền tạm tính: <strong class="text-reset num" data-pm-receipt-total>—</strong></span>
+        </div>
+        <p class="small text-muted-pm mb-3">
+            Số lượng theo đơn vị nhập; tồn kho được cộng theo đơn vị cơ sở = (nhận − hỏng) × quy đổi.
+            Số lô, hạn dùng, kệ có thể bổ sung sau nhưng phải đủ trước khi bấm Nhập kho. Hạn dùng còn ≤ @Model.ExpiryWarningDays ngày sẽ được cảnh báo.
+        </p>
+
+        <div class="d-flex flex-column gap-3" data-pm-repeater="lines" data-pm-next="@Model.Lines.Count">
+            @for (var i = 0; i < Model.Lines.Count; i++)
+            {
+                var line = Model.Lines[i];
+                medicines.TryGetValue(line.MedicineId ?? 0, out var med);
+                LineFields(line, i.ToString(CultureInfo.InvariantCulture), med);
+            }
+            <template data-pm-template="lines">
+                @{ LineFields(new ReceiptLineForm(), "__i__", null); }
+            </template>
+        </div>
+        <span asp-validation-for="Lines" class="field-validation-error"></span>
+        @if (Model.MedicineOptions.Count > 0)
+        {
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-pm-add="lines"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm dòng thuốc @(Model.PurchaseOrderId is null ? "" : "ngoài đơn")</button>
+        }
+    </section>
+
+    <div class="pm-form-actions">
+        <button type="submit" class="btn btn-primary">@(Model.IsEdit ? "Lưu phiếu" : "Lưu phiếu kiểm nhận")</button>
+        @if (Model.IsEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.GoodsReceiptId">Hủy</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary" asp-action="Index">Hủy</a>
+        }
+    </div>
+</form>

@@ -165,7 +165,7 @@
             <div class="col-md-4">
                 <label for="DefaultPurchasePrice" class="form-label">Giá nhập / <span data-pm-base-unit-name>@baseUnitName</span> <span class="opt">(tham khảo)</span></label>
                 <div class="input-group">
-                    <input type="number" id="DefaultPurchasePrice" name="DefaultPurchasePrice" value="@Format.Input(Model.DefaultPurchasePrice)" class="form-control text-end" min="0" step="any" inputmode="decimal" />
+                    <input type="text" id="DefaultPurchasePrice" name="DefaultPurchasePrice" value="@Format.MoneyInput(Model.DefaultPurchasePrice)" class="form-control text-end num" inputmode="numeric" autocomplete="off" data-pm-money data-val="true" data-val-pmmoney="Giá nhập từ 0 đ đến 1.000.000.000 đ, tính theo đồng (không có số lẻ)." data-val-pmmoney-min="0" data-val-pmmoney-max="1000000000" />
                     <span class="input-group-text">đ</span>
                 </div>
                 <span asp-validation-for="DefaultPurchasePrice" class="field-validation-error"></span>
@@ -180,7 +180,7 @@
                 else
                 {
                     <div class="input-group">
-                        <input type="number" id="DefaultSellingPrice" name="DefaultSellingPrice" value="@Format.Input(Model.DefaultSellingPrice)" class="form-control text-end" min="0" step="any" inputmode="decimal" data-pm-base-price-input />
+                        <input type="text" id="DefaultSellingPrice" name="DefaultSellingPrice" value="@Format.MoneyInput(Model.DefaultSellingPrice)" class="form-control text-end num" inputmode="numeric" autocomplete="off" data-pm-base-price-input data-pm-money data-val="true" data-val-pmmoney="Giá bán từ 0 đ đến 1.000.000.000 đ, tính theo đồng (không có số lẻ)." data-val-pmmoney-min="0" data-val-pmmoney-max="1000000000" />
                         <span class="input-group-text">đ</span>
                     </div>
                     <div class="form-text">Khai báo một lần; sau khi lưu, chỉ chủ nhà thuốc đổi được giá.</div>
@@ -238,7 +238,10 @@
                     }
                     else
                     {
-                        <input type="number" name="Conversions[@i].SellingPrice" value="@Format.Input(line.SellingPrice)" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Giá bán của đơn vị này" placeholder="Tự tính" data-pm-auto-price />
+                        <div class="input-group">
+                            <input type="text" name="Conversions[@i].SellingPrice" value="@Format.MoneyInput(line.SellingPrice)" class="form-control text-end num" inputmode="numeric" autocomplete="off" aria-label="Giá bán của đơn vị này" placeholder="Tự tính" data-pm-auto-price data-pm-money data-val="true" data-val-pmmoney="Giá bán của đơn vị quy đổi từ 0 đ đến 1.000.000.000 đ, tính theo đồng (không có số lẻ)." data-val-pmmoney-min="0" data-val-pmmoney-max="1000000000" />
+                            <span class="input-group-text">đ</span>
+                        </div>
                     }
                     <label class="pm-check">
                         <input type="checkbox" name="Conversions[@i].IsDefaultSaleUnit" value="true" checked="@line.IsDefaultSaleUnit" disabled="@(!Model.CanEditConversions)" data-pm-single-check="default-unit" />
@@ -265,7 +268,10 @@
                         }
                     </select>
                     <input type="number" name="Conversions[__i__].ConversionToBase" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Số đơn vị cơ sở" data-pm-factor-input />
-                    <input type="number" name="Conversions[__i__].SellingPrice" class="form-control text-end" min="0" step="any" inputmode="decimal" aria-label="Giá bán của đơn vị này" placeholder="Tự tính" data-pm-auto-price />
+                    <div class="input-group">
+                        <input type="text" name="Conversions[__i__].SellingPrice" class="form-control text-end num" inputmode="numeric" autocomplete="off" aria-label="Giá bán của đơn vị này" placeholder="Tự tính" data-pm-auto-price data-pm-money />
+                        <span class="input-group-text">đ</span>
+                    </div>
                     <label class="pm-check">
                         <input type="checkbox" name="Conversions[__i__].IsDefaultSaleUnit" value="true" data-pm-single-check="default-unit" />
                         <span class="visually-hidden">Đơn vị mặc định khi bán</span>

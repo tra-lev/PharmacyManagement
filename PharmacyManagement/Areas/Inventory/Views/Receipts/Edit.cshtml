@@ -1,0 +1,20 @@
+﻿@model ReceiptFormViewModel
+@{
+    ViewData["Title"] = "Sửa phiếu " + Model.Code;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Nhập kho</a> / <a asp-action="Details" asp-route-id="@Model.GoodsReceiptId">@Model.Code</a> / Sửa</p>
+        <h1 class="pm-title">Sửa phiếu nhập</h1>
+        <p class="pm-subtitle">@Model.Code · đang kiểm nhận — chưa cộng tồn kho.</p>
+    </div>
+</div>
+
+<partial name="_ReceiptForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/receipt.js" asp-append-version="true"></script>
+}

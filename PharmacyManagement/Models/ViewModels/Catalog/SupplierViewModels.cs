@@ -95,6 +95,8 @@ public sealed class SupplierListViewModel
     public SupplierFilter Filter { get; init; } = new();
     public IReadOnlyList<SupplierRow> Rows { get; init; } = Array.Empty<SupplierRow>();
     public int Total { get; init; }
+    /// <summary>Tổng số bản ghi trong CSDL (mọi trạng thái, không theo bộ lọc) — hiện "Tìm thấy X / Y".</summary>
+    public int GrandTotal { get; init; }
     public int PageCount { get; init; }
 }
 

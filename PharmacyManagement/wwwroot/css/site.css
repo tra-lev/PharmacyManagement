@@ -236,3 +236,11 @@ a:hover { color: var(--pm-ink); }
 .pm-live-results { transition: opacity .15s ease; }
 .pm-live-results[aria-busy="true"] { opacity: .55; }
 @media (prefers-reduced-motion: reduce) { .pm-live-results { transition: none; } }
+
+/* Ô gõ tìm có gợi ý (js/combobox.js) — ví dụ ô chọn thuốc ở phiếu nhập */
+.pm-combobox { position: relative; }
+.pm-combobox-list { position: absolute; z-index: 1040; left: 0; right: 0; top: calc(100% + 4px); max-height: 320px; overflow-y: auto; margin: 0; padding: 6px; list-style: none; background: var(--pm-surface); border-radius: var(--pm-radius-inner); box-shadow: var(--pm-shadow-pop); }
+.pm-combobox-list [role="option"] { padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+.pm-combobox-list [role="option"]:hover, .pm-combobox-list [role="option"].active { background: var(--pm-soft); }
+.pm-combobox-list [role="option"][aria-selected="true"] { font-weight: 600; }
+.pm-combobox-empty { padding: 10px 12px; color: var(--pm-muted); }

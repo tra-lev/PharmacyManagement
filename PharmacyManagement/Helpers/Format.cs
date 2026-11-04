@@ -16,5 +16,8 @@ public static class Format
     /// <summary>Giá trị cho thuộc tính value của &lt;input type="number"&gt; (luôn dùng dấu chấm thập phân).</summary>
     public static string Input(decimal? value) => value?.ToString("0.######", CultureInfo.InvariantCulture) ?? string.Empty;
 
+    /// <summary>Giá trị cho ô nhập tiền (data-pm-money): 200.000 — nguyên đồng, dấu chấm hàng nghìn.</summary>
+    public static string MoneyInput(decimal? value) => value?.ToString("#,##0", Vietnamese) ?? string.Empty;
+
     public static string When(System.DateTime value) => value.ToString("HH:mm dd/MM/yyyy", Vietnamese);
 }

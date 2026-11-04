@@ -40,14 +40,14 @@ public static class NavigationMenu
             new MenuItem("invoices", "Hóa đơn", "receipt", Soon("invoices"), Any(P.F3_3_2_1, P.F3_3_2_2, P.F3_3_2_3), false),
             new MenuItem("returns", "Đổi trả", "arrow-counterclockwise", Soon("returns"), Any(P.F3_4_1, P.F3_4_2), false),
             new MenuItem("customers", "Khách hàng", "people", "/Catalog/Customers", Any(P.F1_2_2), true),
-            new MenuItem("shifts", "Ca làm việc", "clock", Soon("shifts"), Any(P.F1_4_1, P.F1_4_2, P.F1_4_3), false),
+            new MenuItem("shifts", "Ca làm việc", "clock", "/Sales/Shifts", Any(P.F1_4_1, P.F1_4_2, P.F1_4_3), true),
             new MenuItem("lookup", "Tra cứu thuốc & tồn", "search", Soon("lookup"), Any(P.F3_1_1), false, OnlyRoles: new[] { RoleNames.Pharmacist })
         }),
         new MenuGroup("stock", "Kho", new[]
         {
             new MenuItem("stock", "Tồn kho & lô", "box-seam", Soon("stock"), Any(P.F2_2_3, P.F2_3_2, P.F2_3_3_2, P.F2_4_1_1), false),
             new MenuItem("po", "Đặt hàng", "clipboard", Soon("po"), Any(P.F2_1_1, P.F2_1_3), false),
-            new MenuItem("gr", "Nhập kho", "truck", Soon("gr"), Any(P.F2_2_2, P.F2_2_1_1), false),
+            new MenuItem("gr", "Nhập kho", "truck", "/Inventory/Receipts", Any(P.F2_2_2, P.F2_2_1_1), true),
             new MenuItem("sret", "Trả nhà cung cấp", "box-arrow-right", Soon("sret"), Any(P.F2_3_1), false),
             new MenuItem("disposal", "Hủy thuốc", "trash3", Soon("disposal"), Any(P.F2_3_2), false),
             new MenuItem("recall", "Thu hồi", "lock", Soon("recall"), Any(P.F2_3_3_1, P.F2_3_3_3), false),

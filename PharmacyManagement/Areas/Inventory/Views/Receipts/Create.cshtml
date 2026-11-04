@@ -1,0 +1,40 @@
+﻿@model ReceiptFormViewModel
+@{
+    ViewData["Title"] = "Lập phiếu nhập";
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Nhập kho</a> / Lập phiếu nhập</p>
+        <h1 class="pm-title">Lập phiếu nhập</h1>
+        <p class="pm-subtitle">Kiểm nhận hàng: đối chiếu đơn đặt hàng, ghi hàng thiếu, hỏng, số lô, hạn dùng và kệ xếp thuốc.</p>
+    </div>
+</div>
+
+@if (Model.PurchaseOrderId is null)
+{
+    <form method="get" asp-action="Create" class="pm-card mb-4 row g-3 align-items-end">
+        <div class="col-md-8">
+            <label for="po-pick" class="form-label">Nhập theo đơn đặt hàng <span class="opt">(không bắt buộc)</span></label>
+            <select id="po-pick" name="purchaseOrderId" class="form-select">
+                <option value="">— Chọn đơn chờ giao hoặc giao thiếu —</option>
+                @foreach (var p in Model.PurchaseOrderOptions)
+                {
+                    <option value="@p.PurchaseOrderId">@p.Label</option>
+                }
+            </select>
+            <div class="form-text">Chọn đơn rồi bấm Lấy hàng từ đơn: các dòng còn thiếu của đơn được điền sẵn. Mua gấp không có đơn thì bỏ qua bước này.</div>
+        </div>
+        <div class="col-md-4">
+            <button type="submit" class="btn btn-outline-secondary w-100"><i class="bi bi-clipboard-check" aria-hidden="true"></i> Lấy hàng từ đơn</button>
+        </div>
+    </form>
+}
+
+<partial name="_ReceiptForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/receipt.js" asp-append-version="true"></script>
+}

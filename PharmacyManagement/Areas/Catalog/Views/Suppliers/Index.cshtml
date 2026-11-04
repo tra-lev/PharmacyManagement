@@ -2,6 +2,7 @@
 @{
     ViewData["Title"] = "Nhà cung cấp";
     var f = Model.Filter;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
     string PageUrl(int page) => Url.Action("Index", new { f.Q, f.Status, page })!;
 }
 
@@ -9,7 +10,18 @@
     <div>
         <p class="pm-crumbs">Danh mục</p>
         <h1 class="pm-title">Nhà cung cấp</h1>
-        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@Model.Total.ToString("N0", CultureInfo.GetCultureInfo("vi-VN")) nhà cung cấp</span> · tìm theo tên, mã, mã số thuế, số điện thoại hoặc người liên hệ; gõ không dấu cũng được.</p>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (f.Q is not null || f.Status == "inactive")
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) nhà cung cấp</text>
+            }
+            else if (Model.Total == Model.GrandTotal)
+            {
+                <text>@N(Model.GrandTotal) nhà cung cấp</text>
+            }
+            else
+            {
+                <text>@N(Model.Total) đang giao dịch / @N(Model.GrandTotal) nhà cung cấp</text>
+            }</span> · tìm theo tên, mã, mã số thuế, số điện thoại hoặc người liên hệ; gõ không dấu cũng được.</p>
     </div>
     <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm nhà cung cấp</a>
 </div>

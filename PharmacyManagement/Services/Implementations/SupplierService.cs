@@ -74,7 +74,11 @@ public sealed class SupplierService : ISupplierService
             .Select(s => new SupplierRow(s.SupplierId, s.SupplierCode, s.SupplierName, s.Phone, s.Email, s.TaxCode, s.ContactPerson, s.IsActive))
             .ToListAsync(ct);
 
-        return new SupplierListViewModel { Filter = filter, Rows = rows, Total = total, PageCount = pageCount };
+        return new SupplierListViewModel
+        {
+            Filter = filter, Rows = rows, Total = total, PageCount = pageCount,
+            GrandTotal = await _db.Suppliers.CountAsync(ct)
+        };
     }
 
     // ================================================================== Chi tiết

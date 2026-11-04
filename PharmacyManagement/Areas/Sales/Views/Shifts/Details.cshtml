@@ -1,0 +1,112 @@
+﻿@model ShiftDetailsViewModel
+@{
+    ViewData["Title"] = "Ca " + Model.Code;
+    var t = Model.Totals;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var closed = Model.Status == (byte)ShiftStatus.Closed;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">
+            @if (Model.IsOwnShift)
+            {
+                <a asp-action="Index">Ca làm việc</a>
+            }
+            else
+            {
+                <a asp-action="Index">Ca làm việc</a> <span>/</span> <a asp-action="All">Ca toàn nhà thuốc</a>
+            }
+            / @Model.Code
+        </p>
+        <h1 class="pm-title">Ca @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge mute">@Model.EmployeeName</span>
+            @if (closed)
+            {
+                <span class="pm-badge mute">Đã chốt</span>
+            }
+            else if (Model.Status == (byte)ShiftStatus.HandedOver)
+            {
+                <span class="pm-badge wait">Đã bàn giao — chờ chốt tiền</span>
+            }
+            else
+            {
+                <span class="pm-badge good">Đang mở</span>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7 d-flex flex-column gap-4">
+        <section class="pm-card" aria-labelledby="d-cash">
+            <h2 id="d-cash" class="pm-h2 mb-3">@(closed ? "Biên bản chốt tiền" : "Tiền của ca (tạm tính)")</h2>
+            <dl class="pm-dl">
+                <dt>Tiền mặt đầu ca</dt><dd class="num">@Format.Money(t.OpeningCash)</dd>
+                <dt>Tiền mặt bán</dt><dd class="num">+ @Format.Money(t.CashSales)</dd>
+                <dt>Tiền mặt hoàn khách</dt><dd class="num">− @Format.Money(t.CashRefunds)</dd>
+                <dt>Tiền mặt theo sổ</dt><dd class="num fw-semibold">@Format.Money(t.ExpectedCash)</dd>
+                @if (closed)
+                {
+                    <dt>Tiền mặt thực đếm</dt><dd class="num fw-semibold">@Format.Money(Model.ActualCash)</dd>
+                    <dt>Chênh lệch</dt>
+                    <dd class="num">
+                        @if (Model.Difference == 0)
+                        {
+                            <span class="pm-badge good">Khớp</span>
+                        }
+                        else if (Model.Difference is not null)
+                        {
+                            <span class="pm-badge @(Model.Difference > 0 ? "warn" : "bad")">@(Model.Difference > 0 ? "Thừa" : "Thiếu") @Format.Money(Math.Abs(Model.Difference.Value))</span>
+                        }
+                    </dd>
+                    <dt>Giải trình</dt><dd class="pm-pre">@(Model.ClosingNotes ?? "—")</dd>
+                }
+                <dt>Chuyển khoản, thẻ</dt><dd class="num">@Format.Money(t.NonCashSales)</dd>
+            </dl>
+        </section>
+    </div>
+
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <section class="pm-card" aria-labelledby="d-time">
+            <h2 id="d-time" class="pm-h2 mb-3">Diễn biến ca</h2>
+            <ul class="pm-timeline">
+                <li>
+                    <div class="small text-muted-pm num">@Format.When(Model.OpenedAt)</div>
+                    <div class="fw-semibold">Mở ca</div>
+                </li>
+                @if (Model.HandedOverAt is not null)
+                {
+                    <li>
+                        <div class="small text-muted-pm num">@Format.When(Model.HandedOverAt.Value)</div>
+                        <div class="fw-semibold">Bàn giao ca</div>
+                        @if (Model.HandoverNote is not null)
+                        {
+                            <div class="small pm-pre">@Model.HandoverNote</div>
+                        }
+                    </li>
+                }
+                @if (Model.ClosedAt is not null)
+                {
+                    <li>
+                        <div class="small text-muted-pm num">@Format.When(Model.ClosedAt.Value)</div>
+                        <div class="fw-semibold">Chốt tiền cuối ca</div>
+                        @if (Model.ClosedByName is not null)
+                        {
+                            <div class="small text-muted-pm">@Model.ClosedByName</div>
+                        }
+                    </li>
+                }
+            </ul>
+        </section>
+
+        <section class="pm-card" aria-labelledby="d-invoices">
+            <h2 id="d-invoices" class="pm-h2 mb-3">Hóa đơn trong ca</h2>
+            <dl class="pm-dl">
+                <dt>Đã thanh toán</dt><dd class="num">@t.PaidInvoiceCount.ToString("N0", vi)</dd>
+                <dt>Chờ thanh toán</dt><dd class="num">@t.PendingInvoiceCount.ToString("N0", vi)</dd>
+            </dl>
+        </section>
+    </div>
+</div>

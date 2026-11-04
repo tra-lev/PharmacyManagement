@@ -1,0 +1,188 @@
+﻿@model ReceiptDetailsViewModel
+@{
+    ViewData["Title"] = "Phiếu nhập " + Model.Code;
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var posted = Model.Status == (byte)GoodsReceiptStatus.Posted;
+    var inspecting = Model.Status == (byte)GoodsReceiptStatus.Inspecting;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Nhập kho</a> / @Model.Code</p>
+        <h1 class="pm-title">Phiếu nhập @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @ReceiptStatusText.Tone(Model.Status)">@ReceiptStatusText.Of(Model.Status)</span>
+            <span class="pm-badge mute">@(Model.PurchaseOrderCode is null ? "Ngoài đơn đặt hàng" : "Theo đơn " + Model.PurchaseOrderCode)</span>
+        </div>
+    </div>
+    @if (Model.CanEdit || Model.CanPost)
+    {
+        <div class="d-flex flex-wrap gap-2">
+            @if (Model.CanPost)
+            {
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#post-modal"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> Nhập kho</button>
+            }
+            @if (Model.CanEdit)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.GoodsReceiptId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa phiếu</a>
+                <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancel-modal">Hủy phiếu</button>
+            }
+        </div>
+    }
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="d-head">
+            <h2 id="d-head" class="pm-h2 mb-3">Thông tin phiếu</h2>
+            <dl class="pm-dl">
+                <dt>Nhà cung cấp</dt><dd>@Model.SupplierName <span class="text-muted-pm">(@Model.SupplierCode)</span></dd>
+                <dt>Số hóa đơn NCC</dt><dd class="num">@Or(Model.SupplierInvoiceNumber)</dd>
+                <dt>Ngày kiểm nhận</dt><dd class="num">@Format.When(Model.ReceiptDate)</dd>
+                <dt>Người kiểm nhận</dt><dd>@Model.ReceivedByName</dd>
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="d-total">
+            <h2 id="d-total" class="pm-h2 mb-3">Tổng tiền</h2>
+            <div class="pm-stat" data-tone="calm">
+                <span class="l">Hàng tốt × đơn giá</span>
+                <span class="v">@Format.Money(Model.TotalAmount)</span>
+                <span class="small text-muted-pm">@Model.Lines.Count dòng · @Model.Lines.Count(l => l.BatchId is not null) lô đã sinh</span>
+            </div>
+            @if (inspecting)
+            {
+                <p class="form-text mb-0 mt-3">Phiếu đang kiểm nhận chưa cộng tồn kho. Bấm Nhập kho khi đã đủ số lô, hạn dùng, kệ cho mọi dòng có hàng tốt.</p>
+            }
+        </section>
+    </div>
+</div>
+
+<section class="pm-card" aria-labelledby="d-lines">
+    <h2 id="d-lines" class="pm-h2 mb-3">Hàng nhận</h2>
+    <div class="table-responsive">
+        <table class="pm-table">
+            <thead>
+                <tr>
+                    <th scope="col">Thuốc</th>
+                    <th scope="col" class="text-end">Nhận / hỏng</th>
+                    <th scope="col" class="text-end">Đơn giá</th>
+                    <th scope="col" class="text-end">Thành tiền</th>
+                    <th scope="col">Lô, hạn dùng, kệ</th>
+                    @if (Model.PurchaseOrderCode is not null)
+                    {
+                        <th scope="col" class="text-end">Đối chiếu đơn</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">@l.MedicineName</span>
+                            <div class="small text-muted-pm">@l.MedicineCode · @l.UnitName@(l.Factor == 1 ? "" : " = " + Format.Number(l.Factor) + " " + l.BaseUnitName)</div>
+                            @if (l.QualityNote is not null)
+                            {
+                                <div class="small text-muted-pm">@l.QualityNote</div>
+                            }
+                        </td>
+                        <td class="text-end num text-nowrap">
+                            @Format.Number(l.QuantityReceived)
+                            @if (l.DamagedQuantity > 0)
+                            {
+                                <div><span class="pm-badge bad">Hỏng @Format.Number(l.DamagedQuantity)</span></div>
+                            }
+                        </td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.UnitCost)</td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.SubTotal)</td>
+                        <td class="small">
+                            @if (l.GoodQuantity <= 0)
+                            {
+                                <span class="text-muted-pm">Hỏng toàn bộ — không nhập kho</span>
+                            }
+                            else
+                            {
+                                <div class="num">Lô @Or(l.BatchNumber)@(l.ExpiryDate is null ? "" : " · HSD " + l.ExpiryDate.Value.ToString("dd/MM/yyyy", vi))</div>
+                                @if (l.DaysToExpiry is not null && l.DaysToExpiry <= Model.ExpiryWarningDays)
+                                {
+                                    <span class="pm-badge warn">@(l.DaysToExpiry <= 0 ? "Đã hết hạn" : "Còn " + l.DaysToExpiry + " ngày")</span>
+                                }
+                                <div class="text-muted-pm">@Or(l.LocationName)</div>
+                                @if (l.BatchId is not null)
+                                {
+                                    <div class="text-muted-pm num">Tồn lô: @Format.Number(l.BatchOnHand ?? 0) @l.BaseUnitName</div>
+                                }
+                            }
+                        </td>
+                        @if (Model.PurchaseOrderCode is not null)
+                        {
+                            <td class="text-end small num text-nowrap">
+                                @if (l.OrderedQuantity is null)
+                                {
+                                    <span class="text-muted-pm">Ngoài đơn</span>
+                                }
+                                else
+                                {
+                                    <span>Đặt @Format.Number(l.OrderedQuantity.Value)</span>
+                                    <div class="text-muted-pm">Đã nhận @Format.Number(l.OrderReceivedQuantity ?? 0)</div>
+                                }
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @if (posted)
+    {
+        <p class="form-text mb-0 mt-3">Phiếu đã nhập kho không sửa, không hủy được. Hàng cần trả lại nhà cung cấp thì lập phiếu trả nhà cung cấp (2.3.1).</p>
+    }
+</section>
+
+@if (Model.CanPost)
+{
+    <div class="modal fade" id="post-modal" tabindex="-1" aria-labelledby="post-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Post" asp-route-id="@Model.GoodsReceiptId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="post-title">Nhập kho phiếu @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Hệ thống sinh lô cho từng dòng có hàng tốt, cộng tồn kho, ghi sổ kho@(Model.PurchaseOrderCode is null ? "" : " và cập nhật đơn " + Model.PurchaseOrderCode). Sau khi nhập kho, phiếu không sửa được nữa.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Để sau</button>
+                    <button type="submit" class="btn btn-primary">Nhập kho</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@if (Model.CanEdit)
+{
+    <div class="modal fade" id="cancel-modal" tabindex="-1" aria-labelledby="cancel-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Cancel" asp-route-id="@Model.GoodsReceiptId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="cancel-title">Hủy phiếu @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Phiếu chuyển sang trạng thái Đã hủy, vẫn lưu để tra cứu; không cộng tồn kho.</p>
+                    <label for="cancel-reason" class="form-label">Lý do hủy <span class="req">*</span></label>
+                    <input type="text" id="cancel-reason" name="reason" class="form-control" maxlength="300" required autocomplete="off" placeholder="Ví dụ: nhà cung cấp giao nhầm, trả lại toàn bộ" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không hủy</button>
+                    <button type="submit" class="btn btn-danger">Hủy phiếu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

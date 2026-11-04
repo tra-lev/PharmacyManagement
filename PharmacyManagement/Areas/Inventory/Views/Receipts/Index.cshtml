@@ -1,0 +1,130 @@
+﻿@model ReceiptListViewModel
+@{
+    ViewData["Title"] = "Nhập kho";
+    var f = Model.Filter;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.Status, f.SupplierId, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Kho</p>
+        <h1 class="pm-title">Nhập kho</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (f.Q is not null || f.Status is not null || f.SupplierId is not null)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) phiếu nhập</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) phiếu nhập</text>
+            }</span> · tìm theo mã phiếu, số hóa đơn, mã đơn đặt hàng hoặc tên nhà cung cấp.</p>
+    </div>
+    @if (Model.CanCreate)
+    {
+        <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Lập phiếu nhập</a>
+    }
+</div>
+
+<form method="get" asp-action="Index" class="pm-card pm-filter mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm phiếu nhập</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã phiếu, số hóa đơn, mã đơn, nhà cung cấp…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="supplier" class="visually-hidden">Nhà cung cấp</label>
+        <select id="supplier" name="SupplierId" class="form-select">
+            <option value="">Tất cả nhà cung cấp</option>
+            @foreach (var s in Model.Suppliers)
+            {
+                <!option value="@s.Id" selected="@(f.SupplierId == s.Id)">@s.Name</!option>
+            }
+        </select>
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi trạng thái</!option>
+            <!option value="inspecting" selected="@(f.Status == "inspecting")">Đang kiểm nhận</!option>
+            <!option value="posted" selected="@(f.Status == "posted")">Đã nhập kho</!option>
+            <!option value="cancelled" selected="@(f.Status == "cancelled")">Đã hủy</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (f.Q is not null || f.Status is not null || f.SupplierId is not null)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Danh sách phiếu nhập" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-truck" aria-hidden="true"></i>
+            @(f.Q is null ? "Chưa có phiếu nhập nào khớp bộ lọc." : $"Không tìm thấy phiếu nhập khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Phiếu nhập</th>
+                        <th scope="col">Nhà cung cấp</th>
+                        <th scope="col" class="text-end">Tổng tiền</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@r.GoodsReceiptId">@r.Code</a>
+                                <div class="small text-muted-pm num">
+                                    @Format.When(r.ReceiptDate) · @r.LineCount dòng@(r.PurchaseOrderCode is null ? " · ngoài đơn" : " · đơn " + r.PurchaseOrderCode)
+                                </div>
+                            </td>
+                            <td class="small">
+                                @r.SupplierName
+                                @if (r.SupplierInvoiceNumber is not null)
+                                {
+                                    <div class="text-muted-pm num">HĐ @r.SupplierInvoiceNumber</div>
+                                }
+                            </td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.TotalAmount)</td>
+                            <td><span class="pm-badge @ReceiptStatusText.Tone(r.Status)">@ReceiptStatusText.Of(r.Status)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

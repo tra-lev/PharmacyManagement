@@ -85,6 +85,7 @@ public sealed class CustomerService : ICustomerService
         {
             Filter = filter,
             Total = total,
+            GrandTotal = await _db.Customers.CountAsync(ct),
             PageCount = pageCount,
             Rows = page.Select(p => new CustomerRow(p.CustomerId, p.CustomerCode, p.FullName, p.Phone, AgeOf(p.DateOfBirth, today),
                 p.Gender, p.AllergyCount, p.HasChronic, p.IsActive)).ToList()

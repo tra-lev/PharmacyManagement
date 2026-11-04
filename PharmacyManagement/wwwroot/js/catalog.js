@@ -63,7 +63,11 @@
   // ---- Gợi ý giá tự tính = giá đơn vị cơ sở × hệ số ----
   function basePrice() {
     var input = form.querySelector('[data-pm-base-price-input]');
-    if (input) return parseFloat(input.value);
+    if (input) {
+      // Ô tiền hiện dạng 1.500 (money-input.js) → bỏ ký tự không phải chữ số
+      var digits = String(input.value).replace(/\D/g, '');
+      return digits === '' ? NaN : Number(digits);
+    }
     var locked = form.querySelector('[data-pm-base-price]');
     return locked ? parseFloat(locked.getAttribute('data-pm-base-price')) : NaN;
   }

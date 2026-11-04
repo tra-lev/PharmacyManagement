@@ -1,0 +1,234 @@
+﻿@model MyShiftViewModel
+@{
+    ViewData["Title"] = "Ca làm việc";
+    var c = Model.Current;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Bán hàng</p>
+        <h1 class="pm-title">Ca làm việc</h1>
+        <p class="pm-subtitle">@(Model.EmployeeName is null ? "Ca của tôi" : "Ca của " + Model.EmployeeName) · mở ca → bàn giao → chốt tiền cuối ca.</p>
+    </div>
+    @if (Model.CanViewAll)
+    {
+        <a class="btn btn-primary" asp-action="All"><i class="bi bi-people" aria-hidden="true"></i> Ca toàn nhà thuốc</a>
+    }
+</div>
+
+<div asp-validation-summary="ModelOnly" class="pm-alert bad mb-4" role="alert"></div>
+
+@if (!Model.HasEmployeeProfile)
+{
+    <div class="pm-alert warn mb-4">Tài khoản chưa gắn hồ sơ nhân viên đang làm việc nên chưa mở ca được. Liên hệ chủ nhà thuốc để cập nhật hồ sơ.</div>
+}
+else if (c is null)
+{
+    @* ---------------- Chưa có ca: 1.4.1 Mở ca ---------------- *@
+    <section class="pm-card mb-4" aria-labelledby="open-title">
+        <h2 id="open-title" class="pm-h2 mb-1">Bạn chưa có ca đang mở</h2>
+        <p class="text-muted-pm mb-3">Đếm tiền mặt có sẵn trong két rồi mở ca. Hóa đơn bán và tiền thu được sẽ gắn vào ca này.</p>
+        @if (Model.CanOpen)
+        {
+            <form asp-action="Open" method="post" class="row g-3 align-items-end" novalidate>
+                <div class="col-sm-6 col-lg-4">
+                    <label asp-for="Open.OpeningCash" class="form-label">Tiền mặt đầu ca <span class="req">*</span></label>
+                    <div class="input-group">
+                        <input type="text" id="Open_OpeningCash" name="Open.OpeningCash" value="@Format.MoneyInput(Model.Open.OpeningCash)"
+                               class="form-control text-end num" inputmode="numeric" autocomplete="off" placeholder="0" data-pm-money
+                               data-val-required="Nhập tiền mặt đầu ca (không có thì nhập 0)." data-val="true" data-val-pmmoney="Tiền mặt đầu ca từ 0 đ đến 1.000.000.000 đ, tính theo đồng (không có số lẻ)." data-val-pmmoney-min="0" data-val-pmmoney-max="1000000000" />
+                        <span class="input-group-text">đ</span>
+                    </div>
+                    <span asp-validation-for="Open.OpeningCash" class="field-validation-error"></span>
+                    @if (Model.LastActualCash is not null)
+                    {
+                        <div class="form-text">Lần chốt ca gần nhất của bạn@(Model.LastClosedAt is null ? "" : " (" + Format.When(Model.LastClosedAt.Value) + ")"): thực đếm @Format.Money(Model.LastActualCash.Value).</div>
+                    }
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-play-circle" aria-hidden="true"></i> Mở ca</button>
+                </div>
+            </form>
+        }
+        else
+        {
+            <p class="mb-0">Bạn không có quyền Mở ca (1.4.1).</p>
+        }
+    </section>
+}
+else
+{
+    var t = c.Totals;
+    var handedOver = c.Status == (byte)ShiftStatus.HandedOver;
+    @* ---------------- Ca chưa chốt: số liệu ---------------- *@
+    <section class="pm-card mb-4" aria-labelledby="cur-title">
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+            <div>
+                <h2 id="cur-title" class="pm-h2">Ca @c.Code</h2>
+                <p class="small text-muted-pm mb-0 num">Mở lúc @Format.When(c.OpenedAt)@(c.HandedOverAt is null ? "" : " · bàn giao lúc " + Format.When(c.HandedOverAt.Value))</p>
+            </div>
+            @if (handedOver)
+            {
+                <span class="pm-badge wait">Đã bàn giao — chờ chốt tiền</span>
+            }
+            else
+            {
+                <span class="pm-badge good">Đang mở</span>
+            }
+        </div>
+        <div class="row g-4">
+            <div class="col-md-5">
+                <div class="pm-stat" data-tone="calm">
+                    <span class="l">Tiền mặt theo sổ</span>
+                    <span class="v">@Format.Money(t.ExpectedCash)</span>
+                    <span class="small text-muted-pm">= đầu ca + tiền mặt bán − tiền mặt hoàn</span>
+                </div>
+            </div>
+            <div class="col-md-7">
+                <dl class="pm-dl">
+                    <dt>Tiền mặt đầu ca</dt><dd class="num">@Format.Money(t.OpeningCash)</dd>
+                    <dt>Tiền mặt bán</dt><dd class="num">@Format.Money(t.CashSales)</dd>
+                    <dt>Tiền mặt hoàn khách</dt><dd class="num">@Format.Money(t.CashRefunds)</dd>
+                    <dt>Chuyển khoản, thẻ</dt><dd class="num">@Format.Money(t.NonCashSales) <span class="small text-muted-pm">(không tính vào két)</span></dd>
+                    <dt>Hóa đơn đã thanh toán</dt><dd class="num">@t.PaidInvoiceCount.ToString("N0", vi)</dd>
+                    <dt>Hóa đơn chờ thanh toán</dt>
+                    <dd class="num">
+                        @t.PendingInvoiceCount.ToString("N0", vi)
+                        @if (t.PendingInvoiceCount > 0)
+                        {
+                            <span class="pm-badge warn ms-1">Cần xử lý trước khi bàn giao</span>
+                        }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+        @if (handedOver && c.HandoverNote is not null)
+        {
+            <div class="pm-alert calm mt-3"><strong>Ghi chú bàn giao:</strong> <span class="pm-pre">@c.HandoverNote</span></div>
+        }
+    </section>
+
+    if (!handedOver)
+    {
+        @* ---------------- 1.4.2 Bàn giao ca ---------------- *@
+        <section class="pm-card mb-4" aria-labelledby="handover-title">
+            <h2 id="handover-title" class="pm-h2 mb-1">Bàn giao ca</h2>
+            <p class="text-muted-pm mb-3">Sau khi bàn giao, ca này không lập hóa đơn mới được nữa; bước tiếp theo là đếm tiền và chốt tiền cuối ca.</p>
+            @if (!Model.CanHandover)
+            {
+                <p class="mb-0">Bạn không có quyền Bàn giao ca (1.4.2).</p>
+            }
+            else if (t.PendingInvoiceCount > 0)
+            {
+                <div class="pm-alert warn mb-0">Ca còn @t.PendingInvoiceCount hóa đơn chờ thanh toán. Thu tiền hoặc hủy các hóa đơn đó ở mục Hóa đơn rồi mới bàn giao được.</div>
+            }
+            else
+            {
+                <form asp-action="Handover" method="post" class="d-flex flex-column gap-3" novalidate>
+                    <div>
+                        <label asp-for="Handover.HandoverNote" class="form-label">Ghi chú bàn giao <span class="req">*</span></label>
+                        <textarea asp-for="Handover.HandoverNote" class="form-control" rows="3" maxlength="1000"></textarea>
+                        <span asp-validation-for="Handover.HandoverNote" class="field-validation-error"></span>
+                        <div class="form-text">Đã điền sẵn tóm tắt ca; thêm việc cần ca sau lưu ý (thuốc sắp hết, khách hẹn lấy thuốc…).</div>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Bàn giao ca</button>
+                    </div>
+                </form>
+            }
+        </section>
+    }
+    else
+    {
+        @* ---------------- 1.4.3 Chốt tiền cuối ca ---------------- *@
+        <section class="pm-card mb-4" aria-labelledby="close-title">
+            <h2 id="close-title" class="pm-h2 mb-1">Chốt tiền cuối ca</h2>
+            <p class="text-muted-pm mb-3">Đếm toàn bộ tiền mặt trong két và nhập số thực đếm. Theo sổ: <strong class="num">@Format.Money(t.ExpectedCash)</strong>. Có chênh lệch thì ghi giải trình.</p>
+            @if (Model.CanClose)
+            {
+                <form asp-action="Close" method="post" class="row g-3" novalidate>
+                    <div class="col-sm-6 col-lg-4">
+                        <label asp-for="Close.ActualCash" class="form-label">Tiền mặt thực đếm <span class="req">*</span></label>
+                        <div class="input-group">
+                            <input type="text" id="Close_ActualCash" name="Close.ActualCash" value="@Format.MoneyInput(Model.Close.ActualCash)"
+                                   class="form-control text-end num" inputmode="numeric" autocomplete="off" placeholder="0" data-pm-money
+                                   data-val-required="Nhập số tiền mặt thực đếm trong két." data-val="true" data-val-pmmoney="Tiền mặt thực đếm từ 0 đ đến 1.000.000.000 đ, tính theo đồng (không có số lẻ)." data-val-pmmoney-min="0" data-val-pmmoney-max="1000000000" />
+                            <span class="input-group-text">đ</span>
+                        </div>
+                        <span asp-validation-for="Close.ActualCash" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Close.Notes" class="form-label">Giải trình chênh lệch <span class="opt">(bắt buộc khi thừa hoặc thiếu)</span></label>
+                        <textarea asp-for="Close.Notes" class="form-control" rows="2" maxlength="1000" placeholder="Ví dụ: thiếu 10.000đ do trả nhầm tiền thừa cho khách"></textarea>
+                        <span asp-validation-for="Close.Notes" class="field-validation-error"></span>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle" aria-hidden="true"></i> Chốt tiền cuối ca</button>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <p class="mb-0">Bạn không có quyền Chốt tiền cuối ca (1.4.3).</p>
+            }
+        </section>
+    }
+}
+
+@* ---------------- Lịch sử ca đã chốt ---------------- *@
+<section class="pm-card" aria-labelledby="history-title">
+    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+        <h2 id="history-title" class="pm-h2">Ca đã chốt</h2>
+        @if (Model.History.Count >= MyShiftViewModel.HistoryLimit)
+        {
+            <span class="small text-muted-pm">@MyShiftViewModel.HistoryLimit ca gần nhất</span>
+        }
+    </div>
+    @if (Model.History.Count == 0)
+    {
+        <p class="text-muted-pm mb-0">Chưa có ca nào đã chốt.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Ca</th>
+                        <th scope="col" class="text-end">Theo sổ</th>
+                        <th scope="col" class="text-end">Thực đếm</th>
+                        <th scope="col" class="text-end">Chênh lệch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var h in Model.History)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@h.ShiftId">@h.Code</a>
+                                <div class="small text-muted-pm num">@Format.When(h.OpenedAt)@(h.ClosedAt is null ? "" : " → " + Format.When(h.ClosedAt.Value))</div>
+                            </td>
+                            <td class="text-end num text-nowrap">@Format.Money(h.ExpectedCash)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(h.ActualCash)</td>
+                            <td class="text-end num text-nowrap">
+                                @if (h.Difference == 0)
+                                {
+                                    <span class="pm-badge good">Khớp</span>
+                                }
+                                else
+                                {
+                                    <span class="pm-badge @(h.Difference > 0 ? "warn" : "bad")">@(h.Difference > 0 ? "Thừa" : "Thiếu") @Format.Money(Math.Abs(h.Difference))</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    <partial name="_FormValidation" />
+}
