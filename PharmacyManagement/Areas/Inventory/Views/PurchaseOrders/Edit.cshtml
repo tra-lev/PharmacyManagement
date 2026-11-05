@@ -1,0 +1,20 @@
+﻿@model PurchaseOrderFormViewModel
+@{
+    ViewData["Title"] = "Sửa đơn " + Model.Code;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Đặt hàng</a> / <a asp-action="Details" asp-route-id="@Model.PurchaseOrderId">@Model.Code</a> / Sửa</p>
+        <h1 class="pm-title">Sửa đơn @Model.Code</h1>
+        <p class="pm-subtitle">Đơn nháp — chưa gửi nhà cung cấp.</p>
+    </div>
+</div>
+
+<partial name="_OrderForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/purchase-order.js" asp-append-version="true"></script>
+}

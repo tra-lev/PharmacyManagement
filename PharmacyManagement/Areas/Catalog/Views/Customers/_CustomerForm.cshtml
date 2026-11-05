@@ -3,7 +3,7 @@
     var action = Model.IsEdit ? "Edit" : "Create";
 }
 
-<form asp-action="@action" asp-route-id="@Model.CustomerId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form novalidate>
+<form asp-action="@action" asp-route-id="@Model.CustomerId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form data-pm-draft="@(Model.CustomerId is null ? "customer-new" : "customer-edit-" + Model.CustomerId)" novalidate>
     <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
 
     @* ---------------- 1. Thông tin khách hàng ---------------- *@

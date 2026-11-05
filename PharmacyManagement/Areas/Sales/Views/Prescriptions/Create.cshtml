@@ -92,7 +92,7 @@
     <a class="btn btn-outline-secondary" asp-action="Index"><i class="bi bi-arrow-left" aria-hidden="true"></i> Danh sách đơn</a>
 </div>
 
-<form asp-action="Create" method="post" class="row g-4 align-items-start" data-pm-repeater-form data-pm-rx-form novalidate>
+<form asp-action="Create" method="post" class="row g-4 align-items-start" data-pm-repeater-form data-pm-rx-form data-pm-draft="rx-new" novalidate>
     <script type="application/json" id="pm-rx-medicines">@Json.Serialize(medicineData)</script>
     <script type="application/json" id="pm-rx-suggest">@Json.Serialize(suggestData)</script>
     <div class="col-12">

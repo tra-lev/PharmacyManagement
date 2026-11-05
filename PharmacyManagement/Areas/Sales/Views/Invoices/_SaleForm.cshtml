@@ -72,6 +72,7 @@
 }
 
 <form asp-action="@(Model.IsEdit ? "Edit" : "Create")" asp-route-id="@Model.InvoiceId" method="post" class="row g-4 align-items-start" data-pm-repeater-form data-pm-sale-form
+      data-pm-draft="@(Model.IsEdit ? "sale-edit-" + Model.InvoiceId : Model.PrescriptionId is not null ? "sale-rx-" + Model.PrescriptionId : "sale-new")"
       data-pm-max-discount="@Format.Input(Model.MaxDiscountPercent)" data-pm-over-limit="@(Model.CanExceedDiscountLimit ? "true" : "false")" novalidate>
     <script type="application/json" id="pm-sale-medicines">@Json.Serialize(medicineData)</script>
     <div class="col-12">

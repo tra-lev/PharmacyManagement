@@ -83,7 +83,7 @@ else if (Model.CanRequest)
 </div>
 
 <form asp-action="@(Model.CanProcess ? "Create" : "SendRequest")" asp-route-id="@Model.InvoiceId" method="post" class="row g-4 align-items-start"
-      data-pm-return-form data-pm-has-shift="@(Model.HasOpenShift ? "true" : "false")" novalidate>
+      data-pm-return-form data-pm-draft="@("return-" + Model.InvoiceId + (Model.RequestId is null ? "" : "-r" + Model.RequestId))" data-pm-has-shift="@(Model.HasOpenShift ? "true" : "false")" novalidate>
     <div class="col-12">
         <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
     </div>

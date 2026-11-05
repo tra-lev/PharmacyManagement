@@ -7,6 +7,8 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    @* Khóa riêng từng tài khoản cho bản lưu tạm form (form-draft.js) *@
+    <meta name="pm-user" content="@(User.Identity?.IsAuthenticated == true ? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value : null)" />
     <title>@(string.IsNullOrEmpty(title) ? PharmacyInfo.Value.Name : title + " · " + PharmacyInfo.Value.Name)</title>
     <partial name="_Styles" />
 </head>
