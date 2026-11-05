@@ -1,0 +1,32 @@
+﻿@model PurchaseOrderFormViewModel
+@{
+    ViewData["Title"] = "Lập đơn đặt hàng";
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Đặt hàng</a> / Lập đơn</p>
+        <h1 class="pm-title">Lập đơn đặt hàng</h1>
+        <p class="pm-subtitle">Lưu nháp, kiểm tra lại rồi bấm Gửi đơn ở trang chi tiết.</p>
+    </div>
+</div>
+
+@if (Model.SuggestedCount > 0)
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-lightbulb" aria-hidden="true"></i> Đã thêm @Model.SuggestedCount thuốc dưới mức tồn tối thiểu. Số lượng gợi ý tính theo đơn vị nhỏ nhất — đổi đơn vị, sửa số lượng hoặc bỏ dòng nếu cần.</div>
+}
+else if (Model.LowStockCount > 0)
+{
+    <div class="pm-alert calm mb-4 d-flex flex-wrap align-items-center justify-content-between gap-2" role="status">
+        <span><i class="bi bi-exclamation-circle" aria-hidden="true"></i> Có @Model.LowStockCount thuốc dưới mức tồn tối thiểu.</span>
+        <a class="btn btn-sm btn-outline-secondary" asp-action="Create" asp-route-suggest="true" asp-route-supplierId="@Model.SupplierId"><i class="bi bi-lightbulb" aria-hidden="true"></i> Gợi ý thuốc cần đặt</a>
+    </div>
+}
+
+<partial name="_OrderForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/purchase-order.js" asp-append-version="true"></script>
+}

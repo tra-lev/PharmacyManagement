@@ -5,7 +5,7 @@
     var dosageForms = new[] { "Viên nén", "Viên nén bao phim", "Viên nang", "Viên sủi", "Thuốc bột", "Thuốc cốm", "Siro", "Hỗn dịch", "Dung dịch uống", "Dung dịch tiêm", "Thuốc nhỏ mắt", "Thuốc nhỏ mũi", "Thuốc xịt", "Thuốc mỡ", "Kem bôi", "Gel bôi", "Miếng dán", "Viên đặt" };
 }
 
-<form asp-action="@action" asp-route-id="@Model.MedicineId" method="post" class="d-flex flex-column gap-4" data-pm-medicine-form novalidate>
+<form asp-action="@action" asp-route-id="@Model.MedicineId" method="post" class="d-flex flex-column gap-4" data-pm-medicine-form data-pm-draft="@(Model.MedicineId is null ? "medicine-new" : "medicine-edit-" + Model.MedicineId)" novalidate>
     <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
 
     @* ---------------- 1. Thông tin chung (1.1.1 / 1.1.2, nhóm thuốc 1.1.3) ---------------- *@

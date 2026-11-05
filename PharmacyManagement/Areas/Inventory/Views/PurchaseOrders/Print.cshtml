@@ -1,0 +1,108 @@
+﻿@model PurchaseOrderDetailsViewModel
+@{
+    Layout = null;
+    string D(DateOnly d) => d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+    var i = 0;
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Đơn đặt hàng @Model.Code · @Model.PharmacyName</title>
+    <style>
+        @@page { size: A4; margin: 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; color: #13302F; background: #fff; }
+        .sheet { max-width: 780px; margin: 0 auto; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #13302F; padding-bottom: 12px; margin-bottom: 16px; }
+        .brand { font-size: 18px; font-weight: 700; }
+        h1 { font-size: 20px; margin: 0 0 4px; text-align: right; }
+        .muted { color: #4E6664; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .box { border: 1px solid #C9D8D5; border-radius: 8px; padding: 10px 12px; }
+        .box b { display: block; margin-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { border: 1px solid #C9D8D5; padding: 6px 8px; vertical-align: top; }
+        th { background: #F1F6F5; text-align: left; }
+        .r { text-align: right; white-space: nowrap; }
+        .sign { display: grid; grid-template-columns: 1fr 1fr; text-align: center; margin-top: 32px; }
+        .sign div { min-height: 90px; }
+        .tools { text-align: right; margin-bottom: 16px; }
+        .tools button { font: inherit; padding: 8px 18px; border-radius: 999px; border: 0; background: #0B3B3E; color: #fff; cursor: pointer; }
+        @@media print { body { padding: 0; } .tools { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <div class="tools"><button type="button" onclick="window.print()">In / Lưu PDF</button></div>
+        <div class="head">
+            <div>
+                <div class="brand">@Model.PharmacyName</div>
+                <div class="muted">Người lập: @Model.CreatedByName</div>
+            </div>
+            <div>
+                <h1>ĐƠN ĐẶT HÀNG</h1>
+                <div class="muted" style="text-align:right">Số: <b>@Model.Code</b> · Ngày @Model.OrderDate.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture)</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="box">
+                <b>Nhà cung cấp</b>
+                @Model.SupplierName (@Model.SupplierCode)<br />
+                @if (!string.IsNullOrWhiteSpace(Model.SupplierContact)) { <text>Người liên hệ: @Model.SupplierContact<br /></text> }
+                @if (!string.IsNullOrWhiteSpace(Model.SupplierPhone)) { <text>Điện thoại: @Model.SupplierPhone<br /></text> }
+                @if (!string.IsNullOrWhiteSpace(Model.SupplierEmail)) { <text>Email: @Model.SupplierEmail<br /></text> }
+                @if (!string.IsNullOrWhiteSpace(Model.SupplierAddress)) { <text>Địa chỉ: @Model.SupplierAddress</text> }
+            </div>
+            <div class="box">
+                <b>Giao hàng</b>
+                Ngày mong muốn nhận: @(Model.ExpectedDeliveryDate is null ? "theo thỏa thuận" : D(Model.ExpectedDeliveryDate.Value))<br />
+                Nơi nhận: @Model.PharmacyName
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:36px">#</th>
+                    <th>Thuốc</th>
+                    <th class="r">Số lượng</th>
+                    <th class="r">Đơn giá dự kiến</th>
+                    <th class="r">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    i++;
+                    <tr>
+                        <td>@i</td>
+                        <td>@l.MedicineName<br /><span class="muted">@l.MedicineCode@(l.Factor == 1 ? "" : " · 1 " + l.UnitName + " = " + Format.Number(l.Factor) + " " + l.BaseUnitName)</span></td>
+                        <td class="r">@Format.Number(l.OrderedQuantity) @l.UnitName</td>
+                        <td class="r">@Format.Money(l.UnitPrice)</td>
+                        <td class="r">@Format.Money(l.SubTotal)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="4" class="r"><b>Tổng cộng</b></td>
+                    <td class="r"><b>@Format.Money(Model.TotalAmount)</b></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        @if (!string.IsNullOrWhiteSpace(Model.Notes))
+        {
+            <p><b>Ghi chú:</b> <span style="white-space:pre-line">@Model.Notes</span></p>
+        }
+
+        <div class="sign">
+            <div><b>Đại diện nhà cung cấp</b><br /><span class="muted">(ký, ghi rõ họ tên)</span></div>
+            <div><b>Người lập đơn</b><br /><span class="muted">(ký, ghi rõ họ tên)</span><br /><br /><br />@Model.CreatedByName</div>
+        </div>
+    </div>
+</body>
+</html>

@@ -132,6 +132,7 @@
 }
 
 <form asp-action="@action" asp-route-id="@Model.GoodsReceiptId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form data-pm-receipt-form
+      data-pm-draft="@(Model.IsEdit ? "receipt-edit-" + Model.GoodsReceiptId : Model.PurchaseOrderId is not null ? "receipt-po-" + Model.PurchaseOrderId : "receipt-new")"
       data-pm-today="@Model.Today" data-pm-warn-days="@Model.ExpiryWarningDays" novalidate>
     <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
     <input type="hidden" name="PurchaseOrderId" value="@Model.PurchaseOrderId" />

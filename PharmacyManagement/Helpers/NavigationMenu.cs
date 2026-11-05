@@ -46,7 +46,7 @@ public static class NavigationMenu
         new MenuGroup("stock", "Kho", new[]
         {
             new MenuItem("stock", "Tồn kho & lô", "box-seam", Soon("stock"), Any(P.F2_2_3, P.F2_3_2, P.F2_3_3_2, P.F2_4_1_1), false),
-            new MenuItem("po", "Đặt hàng", "clipboard", Soon("po"), Any(P.F2_1_1, P.F2_1_3), false),
+            new MenuItem("po", "Đặt hàng", "clipboard", "/Inventory/PurchaseOrders", Any(P.F2_1_1, P.F2_1_3), true),
             new MenuItem("gr", "Nhập kho", "truck", "/Inventory/Receipts", Any(P.F2_2_2, P.F2_2_1_1), true),
             new MenuItem("sret", "Trả nhà cung cấp", "box-arrow-right", Soon("sret"), Any(P.F2_3_1), false),
             new MenuItem("disposal", "Hủy thuốc", "trash3", Soon("disposal"), Any(P.F2_3_2), false),

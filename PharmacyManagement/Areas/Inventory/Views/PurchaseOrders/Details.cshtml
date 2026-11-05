@@ -1,0 +1,191 @@
+﻿@model PurchaseOrderDetailsViewModel
+@{
+    ViewData["Title"] = "Đơn đặt hàng " + Model.Code;
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    string D(DateOnly d) => d.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Đặt hàng</a> / @Model.Code</p>
+        <h1 class="pm-title">Đơn đặt hàng @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @PurchaseOrderStatusText.Tone(Model.Status)">@PurchaseOrderStatusText.Of(Model.Status)</span>
+            @if (Model.EmailedAt.Count > 0)
+            {
+                <span class="pm-badge mute">Đã gửi email @Model.EmailedAt[^1].ToString("HH:mm dd/MM", CultureInfo.InvariantCulture)</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (Model.CanEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.PurchaseOrderId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa</a>
+        }
+        @if (Model.CanCancel)
+        {
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancel-modal">Hủy đơn</button>
+        }
+        @if (Model.Status != (byte)PurchaseOrderStatus.Cancelled && !Model.IsDraft)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Print" asp-route-id="@Model.PurchaseOrderId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In đơn</a>
+        }
+        @if (Model.CanEmail)
+        {
+            <form asp-action="Email" asp-route-id="@Model.PurchaseOrderId" method="post" class="d-inline" novalidate>
+                <button type="submit" class="btn btn-outline-secondary" disabled="@(string.IsNullOrWhiteSpace(Model.SupplierEmail) || !Model.EmailConfigured)">
+                    <i class="bi bi-envelope" aria-hidden="true"></i> Gửi email cho nhà cung cấp
+                </button>
+            </form>
+        }
+        @if (Model.CanSend)
+        {
+            <form asp-action="Send" asp-route-id="@Model.PurchaseOrderId" method="post" class="d-inline" novalidate>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-send" aria-hidden="true"></i> Gửi đơn</button>
+            </form>
+        }
+        @if (Model.CanReceive)
+        {
+            <a class="btn btn-primary" asp-controller="Receipts" asp-action="Create" asp-route-purchaseOrderId="@Model.PurchaseOrderId"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> Lập phiếu nhập theo đơn</a>
+        }
+    </div>
+</div>
+
+@if (Model.IsDraft)
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> Đơn nháp — kiểm tra lại rồi bấm Gửi đơn. Sau khi gửi, đơn không sửa được.</div>
+}
+else if (Model.CanEmail && string.IsNullOrWhiteSpace(Model.SupplierEmail))
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-envelope" aria-hidden="true"></i> Nhà cung cấp chưa có email. Thêm email ở <a asp-area="Catalog" asp-controller="Suppliers" asp-action="Details" asp-route-id="@Model.SupplierId">trang nhà cung cấp</a> hoặc in đơn để gửi.</div>
+}
+else if (Model.CanEmail && !Model.EmailConfigured)
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-envelope" aria-hidden="true"></i> Hệ thống chưa cài đặt tài khoản gửi email. In đơn để gửi nhà cung cấp.</div>
+}
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <section class="pm-card h-100" aria-labelledby="d-head">
+            <h2 id="d-head" class="pm-h2 mb-3">Thông tin đơn</h2>
+            <dl class="pm-dl mb-0">
+                <dt>Ngày lập</dt><dd class="num">@Format.When(Model.OrderDate)</dd>
+                <dt>Người lập</dt><dd>@Model.CreatedByName</dd>
+                <dt>Dự kiến giao</dt><dd class="num">@(Model.ExpectedDeliveryDate is null ? "—" : D(Model.ExpectedDeliveryDate.Value))</dd>
+                <dt>Đã gửi</dt><dd class="num">@(Model.SentAt is null ? "—" : Format.When(Model.SentAt.Value))</dd>
+                <dt>Tổng tiền dự kiến</dt><dd class="num fw-semibold">@Format.Money(Model.TotalAmount)</dd>
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-6">
+        <section class="pm-card h-100" aria-labelledby="d-sup">
+            <h2 id="d-sup" class="pm-h2 mb-3">Nhà cung cấp</h2>
+            <dl class="pm-dl mb-0">
+                <dt>Tên</dt><dd><a asp-area="Catalog" asp-controller="Suppliers" asp-action="Details" asp-route-id="@Model.SupplierId">@Model.SupplierName</a> <span class="text-muted-pm">(@Model.SupplierCode)</span>@(Model.SupplierActive ? "" : " · ngừng giao dịch")</dd>
+                <dt>Người liên hệ</dt><dd>@Or(Model.SupplierContact)</dd>
+                <dt>Điện thoại</dt><dd class="num">@Or(Model.SupplierPhone)</dd>
+                <dt>Email</dt><dd>@Or(Model.SupplierEmail)</dd>
+                <dt>Địa chỉ</dt><dd>@Or(Model.SupplierAddress)</dd>
+            </dl>
+        </section>
+    </div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="d-lines">
+    <h2 id="d-lines" class="pm-h2 mb-3">Thuốc đặt</h2>
+    <div class="table-responsive">
+        <table class="pm-table">
+            <thead>
+                <tr>
+                    <th scope="col">Thuốc</th>
+                    <th scope="col" class="text-end">Đặt</th>
+                    <th scope="col" class="text-end">Đã nhận</th>
+                    <th scope="col" class="text-end">Còn thiếu</th>
+                    <th scope="col" class="text-end">Đơn giá dự kiến</th>
+                    <th scope="col" class="text-end">Thành tiền</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">@l.MedicineName</span>
+                            <div class="small text-muted-pm num">@l.MedicineCode@(l.Factor == 1 ? "" : " · 1 " + l.UnitName + " = " + Format.Number(l.Factor) + " " + l.BaseUnitName)</div>
+                        </td>
+                        <td class="text-end num text-nowrap">@Format.Number(l.OrderedQuantity) @l.UnitName</td>
+                        <td class="text-end num text-nowrap">@Format.Number(l.ReceivedQuantity)</td>
+                        <td class="text-end num text-nowrap">
+                            @if (l.Remaining > 0)
+                            {
+                                <span class="@(Model.IsOpen ? "text-danger" : null)">@Format.Number(l.Remaining)</span>
+                            }
+                            else
+                            {
+                                <span class="pm-badge good">Đủ</span>
+                            }
+                        </td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.UnitPrice)</td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.SubTotal)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="5" class="text-end fw-semibold">Tổng cộng</td>
+                    <td class="text-end num fw-semibold text-nowrap">@Format.Money(Model.TotalAmount)</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
+
+<section class="pm-card" aria-labelledby="d-rec">
+    <h2 id="d-rec" class="pm-h2 mb-3">Phiếu nhập theo đơn</h2>
+    @if (Model.Receipts.Count == 0)
+    {
+        <p class="text-muted-pm mb-0">Chưa có phiếu nhập nào.</p>
+    }
+    else
+    {
+        <ul class="pm-plain-list mb-0">
+            @foreach (var r in Model.Receipts)
+            {
+                <li class="d-flex flex-wrap justify-content-between gap-2 py-1">
+                    <span>
+                        <a asp-controller="Receipts" asp-action="Details" asp-route-id="@r.GoodsReceiptId" class="fw-semibold num">@r.Code</a>
+                        <span class="small text-muted-pm num">· @Format.When(r.ReceiptDate)</span>
+                    </span>
+                    <span class="text-nowrap">
+                        <span class="num">@Format.Money(r.TotalAmount)</span>
+                        <span class="pm-badge @ReceiptStatusText.Tone(r.Status) ms-1">@ReceiptStatusText.Of(r.Status)</span>
+                    </span>
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+@if (Model.CanCancel)
+{
+    <div class="modal fade" id="cancel-modal" tabindex="-1" aria-labelledby="cancel-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Cancel" asp-route-id="@Model.PurchaseOrderId" method="post" novalidate>
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="cancel-title">Hủy đơn @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Đơn chuyển sang Đã hủy và vẫn được lưu để tra cứu.</p>
+                    <label for="cancel-reason" class="form-label">Lý do hủy <span class="req">*</span></label>
+                    <input type="text" id="cancel-reason" name="reason" class="form-control" maxlength="300" autocomplete="off" placeholder="Ví dụ: nhà cung cấp hết hàng" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không hủy</button>
+                    <button type="submit" class="btn btn-danger">Hủy đơn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

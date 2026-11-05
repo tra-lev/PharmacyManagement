@@ -3,7 +3,7 @@
     var action = Model.IsEdit ? "Edit" : "Create";
 }
 
-<form asp-action="@action" asp-route-id="@Model.SupplierId" method="post" class="d-flex flex-column gap-4" novalidate>
+<form asp-action="@action" asp-route-id="@Model.SupplierId" method="post" class="d-flex flex-column gap-4" data-pm-draft="@(Model.SupplierId is null ? "supplier-new" : "supplier-edit-" + Model.SupplierId)" novalidate>
     <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
 
     <section class="pm-card" aria-labelledby="sec-general">
