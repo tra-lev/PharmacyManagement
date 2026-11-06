@@ -1,0 +1,266 @@
+﻿@model StockMedicineViewModel
+@{
+    var full = Model.FullView;
+    ViewData["Title"] = Model.Name;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    var hasNotes = !string.IsNullOrWhiteSpace(Model.UsageInstructions) || !string.IsNullOrWhiteSpace(Model.Contraindications) || !string.IsNullOrWhiteSpace(Model.Interactions);
+    string HistoryUrl(int page) => Url.Action("Medicine", new { id = Model.MedicineId, page })! + "#history";
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">@(full ? "Kho" : "Bán hàng") / <a asp-action="Index">@(full ? "Tồn kho" : "Tra cứu thuốc & tồn")</a> / <span class="num">@Model.Code</span></p>
+        <h1 class="pm-title">@Model.Name</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @(Model.IsPrescription ? "calm" : "mute")">@(Model.IsPrescription ? "Thuốc kê đơn" : "Không kê đơn")</span>
+            @if (Model.IsControlledDrug)
+            {
+                <span class="pm-badge wait">Kiểm soát đặc biệt</span>
+            }
+            @if (!Model.IsActive)
+            {
+                <span class="pm-badge mute">Ngừng kinh doanh</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" asp-action="Batches" asp-route-medicineId="@Model.MedicineId" asp-route-show="all"><i class="bi bi-list-ul" aria-hidden="true"></i> Tất cả lô</a>
+        @if (Model.Links.Catalog)
+        {
+            <a class="btn btn-outline-secondary" asp-area="Catalog" asp-controller="Medicines" asp-action="Details" asp-route-id="@Model.MedicineId"><i class="bi bi-capsule" aria-hidden="true"></i> Hồ sơ thuốc</a>
+        }
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-4">
+        <div class="pm-stat h-100" data-tone="@(Model.Available == 0 ? "bad" : full && Model.Minimum > 0 && Model.Available < Model.Minimum ? "warn" : "calm")">
+            <span class="l">Tồn bán được</span>
+            <span class="v">@StockText.Quantity(Model.Available, Model.BaseUnit)</span>
+            <span class="s">@(Model.AvailableBreakdown ?? (Model.Available == 0 ? "Hết hàng." : " "))</span>
+        </div>
+    </div>
+    @if (Model.Unsellable > 0)
+    {
+        <div class="col-sm-6 col-xl-4">
+            <div class="pm-stat h-100" data-tone="wait">
+                <span class="l">Không bán được</span>
+                <span class="v">@StockText.Quantity(Model.Unsellable, Model.BaseUnit)</span>
+                <span class="s">Lô hết hạn, bị khóa hoặc đang thu hồi.</span>
+            </div>
+        </div>
+    }
+    @if (full)
+    {
+        <div class="col-sm-6 col-xl-4">
+            <div class="pm-stat h-100" data-tone="calm">
+                <span class="l">Mức tồn tối thiểu</span>
+                <span class="v">@(Model.Minimum > 0 ? StockText.Quantity(Model.Minimum, Model.BaseUnit) : "Chưa đặt")</span>
+                <span class="s">@(Model.OnOrder > 0 ? "Đang chờ giao " + StockText.Quantity(Model.OnOrder, Model.BaseUnit) + "." : "Không có hàng đang chờ giao.")</span>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="m-info">
+            <h2 id="m-info" class="pm-h2 mb-3">Thông tin thuốc</h2>
+            <dl class="pm-dl">
+                <dt>Mã thuốc</dt><dd class="num">@Model.Code</dd>
+                <dt>Mã vạch</dt><dd class="num">@Or(Model.Barcode)</dd>
+                <dt>Hoạt chất</dt>
+                <dd>
+                    @if (Model.Ingredients.Count == 0)
+                    {
+                        <text>—</text>
+                    }
+                    else
+                    {
+                        @(string.Join(", ", Model.Ingredients.Select(i => i.Strength is null ? i.Name : i.Name + " " + i.Strength)))
+                    }
+                </dd>
+                <dt>Hàm lượng</dt><dd>@Or(Model.Strength)</dd>
+                <dt>Dạng bào chế</dt><dd>@Or(Model.DosageForm)</dd>
+                <dt>Nhóm thuốc</dt><dd>@Model.CategoryName</dd>
+                <dt>Hãng sản xuất</dt><dd>@Or(Model.ManufacturerName)</dd>
+                <dt>Số đăng ký</dt><dd class="num">@Or(Model.RegistrationNumber)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="m-units">
+            <h2 id="m-units" class="pm-h2 mb-3">Đơn vị và giá bán</h2>
+            <div class="table-responsive">
+                <table class="pm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Đơn vị</th>
+                            <th scope="col" class="text-end">Giá bán</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in Model.SaleUnits)
+                        {
+                            <tr>
+                                <td>
+                                    @u.UnitName
+                                    @if (!u.IsBase)
+                                    {
+                                        <div class="small text-muted-pm num">= @Format.Number(u.Factor) @Model.BaseUnit</div>
+                                    }
+                                </td>
+                                <td class="text-end num text-nowrap">@Format.Money(u.Price)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
+@if (hasNotes)
+{
+    <section class="pm-card mb-4" aria-labelledby="m-notes">
+        <h2 id="m-notes" class="pm-h2 mb-3">Cách dùng và lưu ý</h2>
+        <dl class="pm-dl">
+            @if (!string.IsNullOrWhiteSpace(Model.UsageInstructions))
+            {
+                <dt>Cách dùng</dt><dd class="pm-pre">@Model.UsageInstructions</dd>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Contraindications))
+            {
+                <dt>Chống chỉ định</dt><dd class="pm-pre">@Model.Contraindications</dd>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Interactions))
+            {
+                <dt>Tương tác</dt><dd class="pm-pre">@Model.Interactions</dd>
+            }
+        </dl>
+    </section>
+}
+
+<section class="pm-card mb-4" aria-labelledby="m-batches">
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+        <h2 id="m-batches" class="pm-h2 mb-0">Lô còn hàng</h2>
+        <span class="small text-muted-pm">Hạn dùng còn từ @N(Model.WarningDays) ngày trở xuống là cận hạn.@(Model.EmptyBatchCount > 0 ? " " + N(Model.EmptyBatchCount) + " lô đã hết hàng." : "")</span>
+    </div>
+    @if (Model.Batches.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-box-seam" aria-hidden="true"></i>
+            Thuốc này hiện không còn lô nào trong kho.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Lô</th>
+                        <th scope="col">Hạn dùng</th>
+                        <th scope="col" class="text-end">Tồn</th>
+                        <th scope="col">Vị trí</th>
+                        @if (full)
+                        {
+                            <th scope="col">Nhập kho</th>
+                            <th scope="col" class="text-end">Giá vốn</th>
+                        }
+                        <th scope="col">Tình trạng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Batches)
+                    {
+                        <tr class="@(full ? "pm-row-link" : null)">
+                            <td class="num">
+                                @if (full)
+                                {
+                                    <a class="fw-semibold text-reset stretched-link" asp-action="Batch" asp-route-id="@b.BatchId">@b.BatchNumber</a>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold">@b.BatchNumber</span>
+                                }
+                            </td>
+                            <td class="num text-nowrap">
+                                @b.ExpiryDate.ToString("dd/MM/yyyy", vi)
+                                <div class="small @(b.Condition is BatchCondition.NearExpiry or BatchCondition.Expired ? "fw-semibold" : "text-muted-pm")">@StockText.DaysLeft(b.DaysLeft)</div>
+                            </td>
+                            <td class="text-end num text-nowrap">
+                                @StockText.Quantity(b.Quantity, Model.BaseUnit)
+                                @if (b.Breakdown is not null)
+                                {
+                                    <div class="small text-muted-pm">@b.Breakdown</div>
+                                }
+                            </td>
+                            <td class="small">@(b.Location ?? "Chưa xếp kệ")</td>
+                            @if (full)
+                            {
+                                <td class="small num">
+                                    @b.ReceivedDate.ToString("dd/MM/yyyy", vi)
+                                    @if (b.GoodsReceiptCode is not null)
+                                    {
+                                        <div class="text-muted-pm">@b.GoodsReceiptCode</div>
+                                    }
+                                </td>
+                                <td class="text-end num text-nowrap">@Format.Money(b.UnitCost)</td>
+                            }
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    <span class="pm-badge @StockText.Tone(b.Condition)">@StockText.Condition(b.Condition, b.Status)</span>
+                                    @if (b.SellsNext)
+                                    {
+                                        <span class="pm-badge ink" title="Lần bán tới lấy lô này trước">Bán trước</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (full)
+{
+    <section class="pm-card" id="history" aria-labelledby="m-history">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+            <h2 id="m-history" class="pm-h2 mb-0">Lịch sử nhập xuất</h2>
+            <span class="small text-muted-pm">@N(Model.HistoryTotal) lần biến động</span>
+        </div>
+        @if (Model.History.Count == 0)
+        {
+            <div class="pm-empty">
+                <i class="bi bi-clock-history" aria-hidden="true"></i>
+                Thuốc này chưa có lần nhập xuất nào.
+            </div>
+        }
+        else
+        {
+            <partial name="_Ledger" model="@(new StockLedgerTable(Model.History, Model.Links, Model.BaseUnit, true, false))" />
+
+            @if (Model.HistoryPageCount > 1)
+            {
+                <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang lịch sử">
+                    <span class="small text-muted-pm">Trang @Model.HistoryPage / @Model.HistoryPageCount</span>
+                    <div class="d-flex gap-2">
+                        @if (Model.HistoryPage > 1)
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" href="@HistoryUrl(Model.HistoryPage - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Mới hơn</a>
+                        }
+                        @if (Model.HistoryPage < Model.HistoryPageCount)
+                        {
+                            <a class="btn btn-sm btn-outline-secondary" href="@HistoryUrl(Model.HistoryPage + 1)" rel="next">Cũ hơn <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                        }
+                    </div>
+                </nav>
+            }
+        }
+    </section>
+}

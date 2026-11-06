@@ -12,4 +12,7 @@ public sealed class HomeIndexViewModel
 
     /// <summary>Owner chưa có họ tên thật trong hồ sơ nhân viên.</summary>
     public bool NeedsFullName { get; init; }
+
+    /// <summary>Cảnh báo kho; null khi người dùng không có quyền xem tồn kho.</summary>
+    public Inventory.StockAlertCounts? StockAlerts { get; init; }
 }

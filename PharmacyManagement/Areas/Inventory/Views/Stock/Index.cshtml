@@ -1,0 +1,218 @@
+﻿@model StockListViewModel
+@{
+    var full = Model.FullView;
+    ViewData["Title"] = full ? "Tồn kho" : "Tra cứu thuốc & tồn";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    var searching = f.Q is not null || f.CategoryId is not null || f.Status is not null;
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.CategoryId, f.Status, f.Show, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">@(full ? "Kho" : "Bán hàng")</p>
+        <h1 class="pm-title">@ViewData["Title"]</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (searching)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) thuốc</text>
+            }
+            else if (Model.Total < Model.GrandTotal)
+            {
+                <text>@N(Model.Total) đang kinh doanh / @N(Model.GrandTotal) thuốc</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) thuốc</text>
+            }</span> · tìm theo tên thuốc, mã thuốc, mã vạch hoặc hoạt chất.</p>
+    </div>
+</div>
+
+<partial name="_StockTabs" model="@("medicines")" />
+
+@if (full)
+{
+    <partial name="_StockAlerts" model="@(new StockAlertPanel(Model.Alerts, Model.WarningDays))" />
+}
+
+<form method="get" asp-action="Index" class="pm-card pm-filter mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm thuốc</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Tên thuốc, mã, mã vạch, hoạt chất…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="category" class="visually-hidden">Nhóm thuốc</label>
+        <select id="category" name="CategoryId" class="form-select">
+            <option value="">Mọi nhóm thuốc</option>
+            @foreach (var c in Model.Categories)
+            {
+                <!option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</!option>
+            }
+        </select>
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Tình trạng</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi tình trạng</!option>
+            @if (full)
+            {
+                <!option value="below" selected="@(f.Status == "below")">Dưới mức tối thiểu</!option>
+            }
+            <!option value="out" selected="@(f.Status == "out")">Hết hàng</!option>
+            <!option value="near" selected="@(f.Status == "near")">Có lô cận hạn</!option>
+            <!option value="expired" selected="@(f.Status == "expired")">Có lô hết hạn</!option>
+            <!option value="blocked" selected="@(f.Status == "blocked")">Có lô bị khóa, thu hồi</!option>
+        </select>
+    </div>
+    <div>
+        <label for="show" class="visually-hidden">Thuốc hiển thị</label>
+        <select id="show" name="Show" class="form-select">
+            <!option value="" selected="@(f.Show is null)">Đang kinh doanh</!option>
+            <!option value="all" selected="@(f.Show == "all")">Cả thuốc ngừng kinh doanh</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (f.IsFiltered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Tồn kho theo thuốc" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-box-seam" aria-hidden="true"></i>
+            @(f.Q is null ? "Không có thuốc nào khớp bộ lọc." : $"Không tìm thấy thuốc khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Thuốc</th>
+                        <th scope="col" class="text-end">Tồn bán được</th>
+                        <th scope="col">Hạn gần nhất</th>
+                        @if (full)
+                        {
+                            <th scope="col" class="text-end">Mức tối thiểu</th>
+                        }
+                        <th scope="col">Tình trạng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link" asp-action="Medicine" asp-route-id="@r.MedicineId">@r.Name</a>
+                                <div class="small text-muted-pm"><span class="num">@r.Code</span>@(r.Ingredients is null ? "" : " · " + r.Ingredients)</div>
+                                @if (r.IsPrescription || !r.IsActive)
+                                {
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        @if (r.IsPrescription)
+                                        {
+                                            <span class="pm-badge calm">Kê đơn</span>
+                                        }
+                                        @if (!r.IsActive)
+                                        {
+                                            <span class="pm-badge mute">Ngừng kinh doanh</span>
+                                        }
+                                    </div>
+                                }
+                            </td>
+                            <td class="text-end num text-nowrap">
+                                <span class="fw-semibold">@StockText.Quantity(r.Available, r.BaseUnit)</span>
+                                @if (r.AvailableBreakdown is not null)
+                                {
+                                    <div class="small text-muted-pm">@r.AvailableBreakdown</div>
+                                }
+                                @if (r.Unsellable > 0)
+                                {
+                                    <div class="small text-muted-pm">Không bán được: @Format.Number(r.Unsellable)</div>
+                                }
+                            </td>
+                            <td class="num text-nowrap">
+                                @if (r.NearestExpiry is null)
+                                {
+                                    <span class="text-muted-pm">—</span>
+                                }
+                                else
+                                {
+                                    @r.NearestExpiry.Value.ToString("dd/MM/yyyy", vi)
+                                    <div class="small text-muted-pm">@StockText.DaysLeft(r.NearestDays ?? 0) · @N(r.BatchCount) lô</div>
+                                }
+                            </td>
+                            @if (full)
+                            {
+                                <td class="text-end num text-nowrap">
+                                    @(r.Minimum > 0 ? Format.Number(r.Minimum) : "—")
+                                    @if (r.OnOrder > 0)
+                                    {
+                                        <div class="small text-muted-pm">Đang chờ giao @Format.Number(r.OnOrder)</div>
+                                    }
+                                </td>
+                            }
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    @if (r.Available == 0)
+                                    {
+                                        <span class="pm-badge bad">Hết hàng</span>
+                                    }
+                                    else if (full && r.IsBelowMinimum)
+                                    {
+                                        <span class="pm-badge warn">Dưới mức tối thiểu</span>
+                                    }
+                                    @if (r.HasNearExpiry)
+                                    {
+                                        <span class="pm-badge warn">Có lô cận hạn</span>
+                                    }
+                                    @if (r.HasExpired)
+                                    {
+                                        <span class="pm-badge bad">Có lô hết hạn</span>
+                                    }
+                                    @if (r.HasBlocked)
+                                    {
+                                        <span class="pm-badge wait">Có lô khóa, thu hồi</span>
+                                    }
+                                    @if (r.Available > 0 && !(full && r.IsBelowMinimum) && !r.HasNearExpiry && !r.HasExpired && !r.HasBlocked)
+                                    {
+                                        <span class="pm-badge good">Đủ hàng</span>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

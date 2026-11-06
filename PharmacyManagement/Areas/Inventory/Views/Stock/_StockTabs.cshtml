@@ -1,0 +1,6 @@
+﻿@model string
+@* Chuyển giữa hai cách xem tồn kho. Model: "medicines" hoặc "batches". *@
+<nav class="pm-tabs mb-4" aria-label="Cách xem tồn kho">
+    <a asp-action="Index" class="@(Model == "medicines" ? "active" : null)" aria-current="@(Model == "medicines" ? "page" : null)">Theo thuốc</a>
+    <a asp-action="Batches" class="@(Model == "batches" ? "active" : null)" aria-current="@(Model == "batches" ? "page" : null)">Theo lô</a>
+</nav>

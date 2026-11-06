@@ -1,0 +1,36 @@
+﻿@model StockAlertPanel
+@{
+    var c = Model.Counts;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+}
+@* Cảnh báo kho: bấm vào thẻ để lọc danh sách tương ứng. *@
+<section class="row g-3 mb-4" aria-label="Cảnh báo tồn kho">
+    <div class="col-6 col-xl-3">
+        <a class="pm-stat pm-stat-link" data-tone="@(c.BelowMinimum > 0 ? "warn" : "calm")" asp-action="Index" asp-route-status="below">
+            <span class="l">Thuốc dưới mức tối thiểu</span>
+            <span class="v">@N(c.BelowMinimum)</span>
+            <span class="s">Nên đặt thêm hàng.</span>
+        </a>
+    </div>
+    <div class="col-6 col-xl-3">
+        <a class="pm-stat pm-stat-link" data-tone="@(c.NearExpiry > 0 ? "warn" : "calm")" asp-action="Batches" asp-route-status="near">
+            <span class="l">Lô cận hạn</span>
+            <span class="v">@N(c.NearExpiry)</span>
+            <span class="s">Hạn dùng còn từ @N(Model.WarningDays) ngày trở xuống.</span>
+        </a>
+    </div>
+    <div class="col-6 col-xl-3">
+        <a class="pm-stat pm-stat-link" data-tone="@(c.Expired > 0 ? "bad" : "calm")" asp-action="Batches" asp-route-status="expired">
+            <span class="l">Lô hết hạn còn tồn</span>
+            <span class="v">@N(c.Expired)</span>
+            <span class="s">Không bán được, cần lập biên bản hủy.</span>
+        </a>
+    </div>
+    <div class="col-6 col-xl-3">
+        <a class="pm-stat pm-stat-link" data-tone="@(c.Blocked > 0 ? "wait" : "calm")" asp-action="Batches" asp-route-status="blocked">
+            <span class="l">Lô bị khóa, thu hồi</span>
+            <span class="v">@N(c.Blocked)</span>
+            <span class="s">Không bán được.</span>
+        </a>
+    </div>
+</section>

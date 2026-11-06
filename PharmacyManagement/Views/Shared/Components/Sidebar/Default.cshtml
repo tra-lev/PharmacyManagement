@@ -38,7 +38,7 @@
                     }
                     else if (item.Badge > 0)
                     {
-                        <span class="pm-badge warn ms-auto" title="Đang chờ xử lý">@item.Badge</span>
+                        <span class="pm-badge warn ms-auto" title="@(item.BadgeTitle ?? "Đang chờ xử lý")">@item.Badge</span>
                     }
                 </a>
             }

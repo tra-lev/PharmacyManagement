@@ -1,0 +1,74 @@
+﻿@model StockLedgerTable
+@{
+    var links = Model.Links;
+    string? DocUrl(StockLedgerRow r) => r.DocumentId is null ? null : r.Type switch
+    {
+        (byte)InventoryTransactionType.PurchaseReceipt when links.Receipts => Url.Action("Details", "Receipts", new { area = "Inventory", id = r.DocumentId }),
+        (byte)InventoryTransactionType.SaleIssue when links.Invoices => Url.Action("Details", "Invoices", new { area = "Sales", id = r.DocumentId }),
+        (byte)InventoryTransactionType.CustomerReturnRestock when links.Returns => Url.Action("Details", "Returns", new { area = "Sales", id = r.DocumentId }),
+        _ => null
+    };
+    string Signed(decimal value) => (value > 0 ? "+" : value < 0 ? "−" : "") + Format.Number(Math.Abs(value));
+}
+@* Bảng sổ kho (InventoryTransactions) — dùng ở chi tiết thuốc và chi tiết lô. *@
+<div class="table-responsive">
+    <table class="pm-table">
+        <thead>
+            <tr>
+                <th scope="col">Thời điểm</th>
+                <th scope="col">Biến động</th>
+                @if (Model.ShowBatch)
+                {
+                    <th scope="col">Lô</th>
+                }
+                <th scope="col" class="text-end">Số lượng</th>
+                @if (Model.ShowBalance)
+                {
+                    <th scope="col" class="text-end">Tồn sau</th>
+                }
+                <th scope="col">Chứng từ</th>
+                <th scope="col">Người thực hiện</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in Model.Rows)
+            {
+                var url = DocUrl(r);
+                <tr>
+                    <td class="num text-nowrap small">@Format.When(r.When)</td>
+                    <td>
+                        @StockText.Transaction(r.Type)
+                        @if (!string.IsNullOrWhiteSpace(r.Notes))
+                        {
+                            <div class="small text-muted-pm">@r.Notes</div>
+                        }
+                    </td>
+                    @if (Model.ShowBatch)
+                    {
+                        <td class="num"><a asp-action="Batch" asp-route-id="@r.BatchId">@r.BatchNumber</a></td>
+                    }
+                    <td class="text-end num text-nowrap fw-semibold">@Signed(r.Change) @Model.BaseUnit</td>
+                    @if (Model.ShowBalance)
+                    {
+                        <td class="text-end num text-nowrap">@(r.Balance is null ? "—" : Format.Number(r.Balance.Value))</td>
+                    }
+                    <td class="num">
+                        @if (r.DocumentCode is null)
+                        {
+                            <span class="text-muted-pm">—</span>
+                        }
+                        else if (url is null)
+                        {
+                            @r.DocumentCode
+                        }
+                        else
+                        {
+                            <a href="@url">@r.DocumentCode</a>
+                        }
+                    </td>
+                    <td class="small">@r.Actor</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

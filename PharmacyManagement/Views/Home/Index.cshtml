@@ -15,7 +15,7 @@
             <h2 id="home-data" class="pm-h2 mb-2">Số liệu hôm nay</h2>
             <div class="pm-empty">
                 <i class="bi bi-bar-chart" aria-hidden="true"></i>
-                Doanh thu, thuốc sắp hết hạn và tồn thấp sẽ hiện ở đây khi phân hệ Bán hàng và Kho được đưa vào sử dụng.
+                Doanh thu và số liệu bán hàng sẽ hiện ở đây khi có phân hệ Báo cáo.
             </div>
         </section>
     </div>
@@ -38,6 +38,33 @@
                         <span class="flex-grow-1">Khai báo họ và tên thật</span>
                         <i class="bi bi-chevron-right" aria-hidden="true"></i>
                     </a>
+                }
+                @if (Model.StockAlerts is { } alerts)
+                {
+                    if (alerts.Expired > 0)
+                    {
+                        <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-area="Inventory" asp-controller="Stock" asp-action="Batches" asp-route-status="expired">
+                            <span class="pm-badge bad">@Format.Number(alerts.Expired)</span>
+                            <span class="flex-grow-1">Lô đã hết hạn còn trong kho, cần hủy</span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </a>
+                    }
+                    if (alerts.NearExpiry > 0)
+                    {
+                        <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-area="Inventory" asp-controller="Stock" asp-action="Batches" asp-route-status="near">
+                            <span class="pm-badge warn">@Format.Number(alerts.NearExpiry)</span>
+                            <span class="flex-grow-1">Lô sắp hết hạn dùng</span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </a>
+                    }
+                    if (alerts.BelowMinimum > 0)
+                    {
+                        <a class="pm-inner d-flex align-items-center gap-3 text-decoration-none text-reset" asp-area="Inventory" asp-controller="Stock" asp-action="Index" asp-route-status="below">
+                            <span class="pm-badge warn">@Format.Number(alerts.BelowMinimum)</span>
+                            <span class="flex-grow-1">Thuốc dưới mức tồn tối thiểu, nên đặt thêm</span>
+                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                        </a>
+                    }
                 }
                 @if (Model.IsOwner)
                 {

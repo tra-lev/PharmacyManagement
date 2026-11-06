@@ -1,0 +1,190 @@
+﻿@model StockBatchViewModel
+@{
+    ViewData["Title"] = "Lô " + Model.BatchNumber;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    string Date(DateOnly? d) => d is null ? "—" : d.Value.ToString("dd/MM/yyyy", vi);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Kho / <a asp-action="Batches">Tồn kho theo lô</a> / <span class="num">@Model.BatchNumber</span></p>
+        <h1 class="pm-title">Lô <span class="num">@Model.BatchNumber</span></h1>
+        <p class="pm-subtitle"><a asp-action="Medicine" asp-route-id="@Model.MedicineId">@Model.MedicineName</a> · <span class="num">@Model.MedicineCode</span></p>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @StockText.Tone(Model.Condition)">@StockText.Condition(Model.Condition, Model.Status)</span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-4">
+        <div class="pm-stat h-100" data-tone="calm">
+            <span class="l">Tồn hiện tại</span>
+            <span class="v">@StockText.Quantity(Model.Quantity, Model.BaseUnit)</span>
+            <span class="s">@(Model.Breakdown ?? " ")</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-4">
+        <div class="pm-stat h-100" data-tone="@(Model.Condition == BatchCondition.Expired ? "bad" : Model.Condition == BatchCondition.NearExpiry ? "warn" : "calm")">
+            <span class="l">Hạn dùng</span>
+            <span class="v">@Date(Model.ExpiryDate)</span>
+            <span class="s">@StockText.DaysLeft(Model.DaysLeft) · cận hạn khi còn từ @N(Model.WarningDays) ngày</span>
+        </div>
+    </div>
+    @if (Model.CanSeeSales)
+    {
+        <div class="col-sm-6 col-xl-4">
+            <div class="pm-stat h-100" data-tone="calm">
+                <span class="l">Đã xuất bán</span>
+                <span class="v">@StockText.Quantity(Model.SoldQuantity, Model.BaseUnit)</span>
+                <span class="s">@N(Model.SalesCount) lần xuất theo hóa đơn</span>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="b-info">
+            <h2 id="b-info" class="pm-h2 mb-3">Thông tin lô</h2>
+            <dl class="pm-dl">
+                <dt>Ngày sản xuất</dt><dd class="num">@Date(Model.ManufactureDate)</dd>
+                <dt>Hạn dùng</dt><dd class="num">@Date(Model.ExpiryDate)</dd>
+                <dt>Ngày nhập</dt><dd class="num">@Date(Model.ReceivedDate)</dd>
+                <dt>Phiếu nhập</dt>
+                <dd class="num">
+                    @if (Model.GoodsReceiptCode is null)
+                    {
+                        <text>—</text>
+                    }
+                    else if (Model.Links.Receipts)
+                    {
+                        <a asp-controller="Receipts" asp-action="Details" asp-route-id="@Model.GoodsReceiptId">@Model.GoodsReceiptCode</a>
+                    }
+                    else
+                    {
+                        @Model.GoodsReceiptCode
+                    }
+                </dd>
+                <dt>Nhà cung cấp</dt><dd>@Or(Model.SupplierName)</dd>
+                <dt>Giá vốn</dt><dd class="num">@Format.Money(Model.UnitCost) / @Model.BaseUnit</dd>
+                <dt>Kho</dt><dd>@Model.WarehouseName</dd>
+                <dt>Vị trí</dt><dd>@(Model.Location ?? "Chưa xếp kệ")</dd>
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="b-move">
+            <h2 id="b-move" class="pm-h2 mb-3">Vị trí trong kho</h2>
+            <p class="mb-3">Đang ở: <span class="fw-semibold">@(Model.Location ?? "Chưa xếp kệ")</span></p>
+            @if (Model.CanMove)
+            {
+                var otherShelves = Model.ShelfOptions.Where(x => x.Id != Model.LocationId).ToList();
+                if (otherShelves.Count == 0)
+                {
+                    <p class="form-text mb-0">Kho chưa có kệ khác để chuyển lô.</p>
+                }
+                else
+                {
+                    <form asp-action="MoveBatch" asp-route-id="@Model.BatchId" method="post" class="d-flex flex-column gap-3">
+                        <div>
+                            <label for="locationId" class="form-label">Chuyển sang kệ <span class="req">*</span></label>
+                            <select id="locationId" name="locationId" class="form-select" required>
+                                <option value="">Chọn kệ</option>
+                                @foreach (var s in otherShelves)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Chuyển lô</button>
+                        </div>
+                    </form>
+                }
+            }
+            else if (!Model.Movable)
+            {
+                <p class="form-text mb-0">@(Model.Quantity <= 0 ? "Lô đã hết hàng." : "Lô đã ngừng sử dụng.")</p>
+            }
+        </section>
+    </div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="b-ledger">
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+        <h2 id="b-ledger" class="pm-h2 mb-0">Sổ kho của lô</h2>
+        <span class="small text-muted-pm">@(Model.LedgerTotal > Model.Ledger.Count ? N(Model.Ledger.Count) + " lần gần nhất / " + N(Model.LedgerTotal) + " lần biến động" : N(Model.LedgerTotal) + " lần biến động")</span>
+    </div>
+    @if (Model.Ledger.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-clock-history" aria-hidden="true"></i>
+            Lô này chưa có lần nhập xuất nào.
+        </div>
+    }
+    else
+    {
+        <partial name="_Ledger" model="@(new StockLedgerTable(Model.Ledger, Model.Links, Model.BaseUnit, false, true))" />
+    }
+</section>
+
+@if (Model.CanSeeSales)
+{
+    <section class="pm-card" aria-labelledby="b-sales">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+            <h2 id="b-sales" class="pm-h2 mb-0">Đã bán cho khách</h2>
+            @if (Model.SalesCount > Model.Sales.Count)
+            {
+                <span class="small text-muted-pm">@N(Model.Sales.Count) lần gần nhất / @N(Model.SalesCount)</span>
+            }
+        </div>
+        @if (Model.Sales.Count == 0)
+        {
+            <div class="pm-empty">
+                <i class="bi bi-receipt" aria-hidden="true"></i>
+                Lô này chưa bán cho khách nào.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="pm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Thời điểm</th>
+                            <th scope="col">Hóa đơn</th>
+                            <th scope="col">Khách hàng</th>
+                            <th scope="col">Số điện thoại</th>
+                            <th scope="col" class="text-end">Số lượng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Sales)
+                        {
+                            <tr>
+                                <td class="num text-nowrap small">@Format.When(s.When)</td>
+                                <td class="num">
+                                    @if (Model.Links.Invoices)
+                                    {
+                                        <a asp-area="Sales" asp-controller="Invoices" asp-action="Details" asp-route-id="@s.InvoiceId">@s.InvoiceCode</a>
+                                    }
+                                    else
+                                    {
+                                        @s.InvoiceCode
+                                    }
+                                </td>
+                                <td>@s.CustomerName</td>
+                                <td class="num">@Or(s.Phone)</td>
+                                <td class="text-end num text-nowrap">@StockText.Quantity(s.Quantity, Model.BaseUnit)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}

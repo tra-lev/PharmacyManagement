@@ -267,3 +267,18 @@ a:hover { color: var(--pm-ink); }
 @media (max-width: 991.98px) {
   .pm-filter.pm-filter-1 { grid-template-columns: 1fr 1fr; }
 }
+/* Tồn kho (DEC-39): thẻ cảnh báo bấm để lọc, màu nền theo mức độ; thanh chuyển Theo thuốc / Theo lô */
+.pm-stat[data-tone="good"] { background: var(--pm-good-bg); }
+.pm-stat[data-tone="wait"] { background: var(--pm-wait-bg); }
+.pm-stat[data-tone="warn"] { background: var(--pm-warn-bg); }
+.pm-stat[data-tone="bad"] { background: var(--pm-bad-bg); }
+.pm-stat .s { font-size: 13px; color: var(--pm-text-2); }
+.pm-stat-link { height: 100%; color: inherit; text-decoration: none; transition: box-shadow .15s ease; }
+.pm-stat-link:hover { color: inherit; box-shadow: var(--pm-shadow-pop); }
+.pm-stat-link:focus-visible { outline: 2px solid var(--pm-primary); outline-offset: 2px; }
+.pm-tabs { display: inline-flex; flex-wrap: wrap; gap: 6px; padding: 4px; background: var(--pm-soft); border-radius: var(--pm-radius-pill); }
+.pm-tabs a { padding: 8px 18px; border-radius: var(--pm-radius-pill); color: var(--pm-text-2); text-decoration: none; font-size: 14px; }
+.pm-tabs a:hover { color: var(--pm-text); }
+.pm-tabs a.active { background: var(--pm-surface); color: var(--pm-text); font-weight: 600; box-shadow: 0 1px 3px rgba(19, 48, 47, .12); }
+.pm-tabs a:focus-visible { outline: 2px solid var(--pm-primary); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .pm-stat-link { transition: none; } }
