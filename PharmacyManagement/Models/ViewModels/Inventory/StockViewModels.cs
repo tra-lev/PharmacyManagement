@@ -88,9 +88,9 @@ public sealed record StockAlertCounts(int BelowMinimum, int NearExpiry, int Expi
 }
 
 /// <summary>Quyền xem chứng từ liên quan — quyết định có hiện liên kết hay chỉ hiện mã.</summary>
-public sealed record StockLinks(bool Receipts, bool Invoices, bool Returns, bool Catalog)
+public sealed record StockLinks(bool Receipts, bool Invoices, bool Returns, bool Catalog, bool Disposals)
 {
-    public static readonly StockLinks None = new(false, false, false, false);
+    public static readonly StockLinks None = new(false, false, false, false, false);
 }
 
 // ------------------------------------------------------------------ Tồn theo thuốc
@@ -223,6 +223,9 @@ public sealed class BatchListViewModel
 
     public bool FullView { get; set; }
     public StockLinks Links { get; set; } = StockLinks.None;
+
+    /// <summary>Có quyền lập biên bản hủy (F2.3.2) — hiện nút hủy các lô hết hạn khi lọc Hết hạn (DEC-41).</summary>
+    public bool CanDispose { get; set; }
 }
 
 // ------------------------------------------------------------------ Chi tiết thuốc (tra cứu 3.1.1)
@@ -359,5 +362,8 @@ public sealed class StockBatchViewModel
 
     public bool CanSeeSales { get; set; }
     public bool CanMove { get; set; }
+
+    /// <summary>Có quyền F2.3.2, lô còn hàng và không đang thu hồi — hiện nút "Hủy lô này" (DEC-41).</summary>
+    public bool CanDispose { get; set; }
     public StockLinks Links { get; set; } = StockLinks.None;
 }

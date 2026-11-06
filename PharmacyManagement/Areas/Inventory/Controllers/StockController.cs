@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using PharmacyManagement.Authorization;
+using PharmacyManagement.Models.Enums;
 using PharmacyManagement.Models.ViewModels.Inventory;
 using PharmacyManagement.Services.Interfaces;
 
@@ -58,6 +59,7 @@ public class StockController : Controller
         var model = await _stock.GetBatchListAsync(filter);
         model.FullView = full;
         model.Links = full ? await LinksAsync() : StockLinks.None;
+        model.CanDispose = full && await HasAsync(PermissionCodes.F2_3_2);
         return View(model);
     }
 
@@ -86,6 +88,7 @@ public class StockController : Controller
         if (model is null) return NotFound();
         model.CanSeeSales = canSeeSales;
         model.CanMove = model.Movable && await HasAsync(PermissionCodes.F2_2_4);
+        model.CanDispose = model.Quantity > 0 && model.Status != (byte)BatchStatus.Recalled && await HasAsync(PermissionCodes.F2_3_2);
         model.Links = await LinksAsync();
         return View(model);
     }
@@ -114,7 +117,8 @@ public class StockController : Controller
         Invoices: await HasAsync(PermissionCodes.F4_1_1),
         Returns: await HasAsync(PermissionCodes.F3_4_1) || await HasAsync(PermissionCodes.F3_4_4)
                  || (await HasAsync(PermissionCodes.F3_4_2) && await HasAsync(PermissionCodes.F3_4_3)),
-        Catalog: await HasAsync(PermissionCodes.F1_1_1) || await HasAsync(PermissionCodes.F1_1_2));
+        Catalog: await HasAsync(PermissionCodes.F1_1_1) || await HasAsync(PermissionCodes.F1_1_2),
+        Disposals: await HasAsync(PermissionCodes.F2_3_2));
 
     private async Task<bool> HasAsync(string code) => (await _authorization.AuthorizeAsync(User, code)).Succeeded;
 

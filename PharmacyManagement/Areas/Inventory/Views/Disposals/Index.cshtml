@@ -1,0 +1,111 @@
+﻿@model DisposalListViewModel
+@{
+    ViewData["Title"] = "Hủy thuốc";
+    var f = Model.Filter;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.Status, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Kho</p>
+        <h1 class="pm-title">Hủy thuốc</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (f.IsFiltered)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) biên bản</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) biên bản</text>
+            }</span> · tìm theo mã biên bản, lý do, tên thuốc hoặc số lô.</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Lập biên bản hủy</a>
+</div>
+
+<form method="get" asp-action="Index" class="pm-card pm-filter pm-filter-1 mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm biên bản</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã biên bản, lý do, tên thuốc, số lô…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi trạng thái</!option>
+            <!option value="draft" selected="@(f.Status == "draft")">Nháp</!option>
+            <!option value="posted" selected="@(f.Status == "posted")">Đã ghi sổ</!option>
+            <!option value="cancelled" selected="@(f.Status == "cancelled")">Đã hủy</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (f.IsFiltered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Danh sách biên bản hủy" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-trash3" aria-hidden="true"></i>
+            @(f.Q is null ? "Chưa có biên bản hủy nào khớp bộ lọc." : $"Không tìm thấy biên bản khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Biên bản</th>
+                        <th scope="col">Lý do</th>
+                        <th scope="col" class="text-end">Giá trị hủy</th>
+                        <th scope="col">Người lập</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@r.DisposalId">@r.Code</a>
+                                <div class="small text-muted-pm num">@Format.When(r.DisposalDate) · @N(r.LineCount) lô</div>
+                            </td>
+                            <td class="small">@r.Reason</td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.TotalValue)</td>
+                            <td class="small">@r.CreatedByName</td>
+                            <td><span class="pm-badge @DisposalStatusText.Tone(r.Status)">@DisposalStatusText.Of(r.Status)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

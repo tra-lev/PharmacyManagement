@@ -97,6 +97,13 @@
     }
     else
     {
+        if (f.Status == "expired" && Model.CanDispose)
+        {
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <span class="small text-muted-pm">Lô hết hạn không bán được, cần lập biên bản hủy.</span>
+                <a class="btn btn-primary" asp-controller="Disposals" asp-action="Create" asp-route-expired="true"><i class="bi bi-trash3" aria-hidden="true"></i> Lập biên bản hủy tất cả lô hết hạn</a>
+            </div>
+        }
         <div class="table-responsive">
             <table class="pm-table">
                 <thead>

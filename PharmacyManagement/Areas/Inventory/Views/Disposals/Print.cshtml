@@ -1,0 +1,116 @@
+﻿@model DisposalDetailsViewModel
+@{
+    Layout = null;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var i = 0;
+    var title = Model.Status switch
+    {
+        (byte)DisposalStatus.Draft => "BIÊN BẢN HỦY THUỐC (NHÁP)",
+        (byte)DisposalStatus.Cancelled => "BIÊN BẢN HỦY THUỐC (ĐÃ HỦY)",
+        _ => "BIÊN BẢN HỦY THUỐC"
+    };
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Biên bản hủy @Model.Code · @Model.PharmacyName</title>
+    <style>
+        @@page { size: A4; margin: 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; color: #13302F; background: #fff; }
+        .sheet { max-width: 780px; margin: 0 auto; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #13302F; padding-bottom: 12px; margin-bottom: 16px; }
+        .brand { font-size: 18px; font-weight: 700; }
+        h1 { font-size: 20px; margin: 0 0 4px; text-align: right; }
+        .right { text-align: right; }
+        .muted { color: #4E6664; }
+        .box { border: 1px solid #C9D8D5; border-radius: 8px; padding: 10px 12px; margin-bottom: 16px; }
+        .box b { display: inline-block; min-width: 110px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { border: 1px solid #C9D8D5; padding: 6px 8px; vertical-align: top; }
+        th { background: #F1F6F5; text-align: left; }
+        .r { text-align: right; white-space: nowrap; }
+        .num-col { width: 36px; }
+        .pre { white-space: pre-line; }
+        .sign { display: grid; grid-template-columns: 1fr 1fr 1fr; text-align: center; margin-top: 32px; gap: 8px; }
+        .sign div { min-height: 100px; }
+        .tools { text-align: right; margin-bottom: 16px; }
+        .tools button { font: inherit; padding: 8px 18px; border-radius: 999px; border: 0; background: #0B3B3E; color: #fff; cursor: pointer; }
+        @@media print { body { padding: 0; } .tools { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <div class="tools"><button type="button" onclick="window.print()">In / Lưu PDF</button></div>
+        <div class="head">
+            <div>
+                <div class="brand">@Model.PharmacyName</div>
+                <div class="muted">Kho: @Model.WarehouseName</div>
+            </div>
+            <div>
+                <h1>@title</h1>
+                <div class="muted right">Số: <b>@Model.Code</b> · Ngày @Model.DisposalDate.ToString("dd/MM/yyyy", vi)</div>
+            </div>
+        </div>
+
+        <div class="box">
+            <div><b>Người lập:</b> @Model.CreatedByName</div>
+            <div><b>Lý do hủy:</b> @Model.Reason</div>
+            @if (Model.PostedAt is not null)
+            {
+                <div><b>Ghi sổ lúc:</b> @Format.When(Model.PostedAt.Value)</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.Notes))
+            {
+                <div class="pre"><b>Ghi chú:</b> @Model.Notes</div>
+            }
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th class="num-col">#</th>
+                    <th>Thuốc</th>
+                    <th>Số lô</th>
+                    <th>Hạn dùng</th>
+                    <th class="r">Số lượng</th>
+                    <th class="r">Giá vốn</th>
+                    <th class="r">Giá trị</th>
+                    <th>Lý do</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    i++;
+                    <tr>
+                        <td>@i</td>
+                        <td>@l.MedicineName<br /><span class="muted">@l.MedicineCode</span></td>
+                        <td>@l.BatchNumber</td>
+                        <td>@l.ExpiryDate.ToString("dd/MM/yyyy", vi)</td>
+                        <td class="r">@Format.Number(l.Quantity) @l.BaseUnit</td>
+                        <td class="r">@Format.Money(l.UnitCost)</td>
+                        <td class="r">@Format.Money(l.Value)</td>
+                        <td>@DisposalReasonText.Of(l.ReasonType)@(string.IsNullOrWhiteSpace(l.ReasonNote) ? "" : ": " + l.ReasonNote)</td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="6" class="r"><b>Tổng giá trị hủy</b></td>
+                    <td class="r"><b>@Format.Money(Model.TotalValue)</b></td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div class="sign">
+            <div><b>Người lập biên bản</b><br /><span class="muted">(ký, ghi rõ họ tên)</span><br /><br /><br />@Model.CreatedByName</div>
+            <div><b>Thủ kho</b><br /><span class="muted">(ký, ghi rõ họ tên)</span></div>
+            <div><b>Chủ nhà thuốc</b><br /><span class="muted">(ký, ghi rõ họ tên)</span></div>
+        </div>
+    </div>
+</body>
+</html>

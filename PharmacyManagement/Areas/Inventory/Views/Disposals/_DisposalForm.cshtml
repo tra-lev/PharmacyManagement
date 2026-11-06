@@ -1,0 +1,129 @@
+﻿@model DisposalFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+    // Dữ liệu cho disposal.js: tồn, giá vốn, đơn vị cơ sở, đã hết hạn của từng lô
+    var batchData = Model.BatchOptions.ToDictionary(
+        b => b.BatchId.ToString(CultureInfo.InvariantCulture),
+        b => new { qty = b.Quantity, cost = b.UnitCost, unit = b.BaseUnit, expired = b.Expired });
+
+    void LineFields(DisposalLineForm l, string idx)
+    {
+        var p = "Lines[" + idx + "].";
+        <div class="pm-inner" data-pm-row data-pm-disposal-line>
+            <input type="hidden" name="Lines.Index" value="@idx" />
+            <div class="row g-2">
+                <div class="col-lg-7">
+                    <label class="form-label" for="@(idx)-lot">Lô thuốc <span class="req">*</span></label>
+                    <select id="@(idx)-lot" name="@(p)BatchId" class="form-select" data-pm-lot
+                            data-pm-combobox data-pm-combobox-placeholder="Gõ tên thuốc, mã thuốc hoặc số lô…" data-pm-combobox-empty="Không tìm thấy lô">
+                        <!option value="">— Chọn lô —</!option>
+                        @foreach (var b in Model.BatchOptions)
+                        {
+                            <!option value="@b.BatchId" data-search="@b.Keywords" selected="@(b.BatchId == l.BatchId)">@b.Label</!option>
+                        }
+                    </select>
+                    <span class="small text-muted-pm d-block mt-1" data-pm-lot-info></span>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="form-label" for="@(idx)-qty">Số lượng hủy <span class="req">*</span></label>
+                    <input type="number" id="@(idx)-qty" name="@(p)Quantity" value="@Format.Input(l.Quantity)" class="form-control text-end" min="0" step="any" inputmode="decimal" data-pm-qty />
+                </div>
+                <div class="col-6 col-md-4 col-lg-3">
+                    <label class="form-label" for="@(idx)-reason">Lý do <span class="req">*</span></label>
+                    <select id="@(idx)-reason" name="@(p)ReasonType" class="form-select" data-pm-reason>
+                        <!option value="">— Chọn lý do —</!option>
+                        @foreach (var r in DisposalReasonText.All)
+                        {
+                            <!option value="@r" selected="@(l.ReasonType == r)">@DisposalReasonText.Of(r)</!option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <span class="form-label d-block">Giá trị hủy</span>
+                    <div class="form-control pm-readonly num justify-content-end" data-pm-line-total>—</div>
+                </div>
+                <div class="col">
+                    <label class="form-label" for="@(idx)-note">Ghi chú <span class="opt">(bắt buộc khi chọn Khác)</span></label>
+                    <input type="text" id="@(idx)-note" name="@(p)ReasonNote" value="@l.ReasonNote" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: vỉ bị ẩm, viên đổi màu" />
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng lô"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+<form asp-action="@action" asp-route-id="@Model.DisposalId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form data-pm-disposal-form
+      data-pm-draft="@(Model.IsEdit ? "disposal-edit-" + Model.DisposalId : "disposal-new")" novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+    <script type="application/json" id="pm-disposal-batches">@Json.Serialize(batchData)</script>
+
+    @if (Model.PrefillNote is not null)
+    {
+        <div class="pm-alert calm" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> @Model.PrefillNote</div>
+    }
+
+    @* ---------------- Thông tin biên bản ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-head">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+            <h2 id="sec-head" class="pm-h2">Thông tin biên bản</h2>
+            <span class="small text-muted-pm">Mã biên bản: <strong class="text-reset">@Model.Code</strong>@(Model.IsEdit ? "" : " (dự kiến, tự sinh khi lưu)")</span>
+        </div>
+        <div class="row g-3">
+            <div class="col-12">
+                <label asp-for="Reason" class="form-label">Lý do hủy <span class="req">*</span></label>
+                <input asp-for="Reason" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: Hủy thuốc hết hạn sử dụng tháng 11/2026" />
+                <span asp-validation-for="Reason" class="field-validation-error"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Notes" class="form-label">Ghi chú <span class="opt">(không bắt buộc)</span></label>
+                <textarea asp-for="Notes" class="form-control" rows="2" maxlength="1000"></textarea>
+                <span asp-validation-for="Notes" class="field-validation-error"></span>
+            </div>
+        </div>
+    </section>
+
+    @* ---------------- Lô cần hủy ---------------- *@
+    <section class="pm-card" aria-labelledby="sec-lines">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+            <h2 id="sec-lines" class="pm-h2">Lô cần hủy</h2>
+            <span class="small text-muted-pm">Tổng giá trị hủy: <strong class="text-reset num" data-pm-disposal-total>—</strong></span>
+        </div>
+        <p class="small text-muted-pm mb-3">Số lượng tính theo đơn vị cơ sở. Lưu biên bản chưa trừ tồn; tồn kho chỉ giảm khi bấm Ghi sổ.</p>
+
+        @if (Model.BatchOptions.Count == 0)
+        {
+            <div class="pm-empty">
+                <i class="bi bi-box-seam" aria-hidden="true"></i>
+                Kho không còn lô nào để hủy.
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3" data-pm-repeater="lines" data-pm-next="@Model.Lines.Count">
+                @for (var i = 0; i < Model.Lines.Count; i++)
+                {
+                    LineFields(Model.Lines[i], i.ToString(CultureInfo.InvariantCulture));
+                }
+                <template data-pm-template="lines">
+                    @{ LineFields(new DisposalLineForm(), "__i__"); }
+                </template>
+            </div>
+            <span asp-validation-for="Lines" class="field-validation-error"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-pm-add="lines"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm lô</button>
+        }
+    </section>
+
+    <div class="pm-form-actions">
+        <button type="submit" class="btn btn-primary">Lưu biên bản</button>
+        @if (Model.IsEdit)
+        {
+            <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.DisposalId">Quay lại</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a>
+        }
+    </div>
+</form>

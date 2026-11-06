@@ -1,0 +1,170 @@
+﻿@model DisposalDetailsViewModel
+@{
+    ViewData["Title"] = "Biên bản hủy " + Model.Code;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    var shortLines = Model.IsDraft
+        ? Model.Lines.Where(l => l.Quantity > l.BatchOnHand || l.LotStatus == (byte)BatchStatus.Recalled).ToList()
+        : new List<DisposalLineView>();
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Hủy thuốc</a> / @Model.Code</p>
+        <h1 class="pm-title">Biên bản hủy @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @DisposalStatusText.Tone(Model.Status)">@DisposalStatusText.Of(Model.Status)</span>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (Model.CanEdit)
+        {
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#post-modal"><i class="bi bi-journal-check" aria-hidden="true"></i> Ghi sổ</button>
+            <a class="btn btn-outline-secondary" asp-action="Edit" asp-route-id="@Model.DisposalId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa biên bản</a>
+        }
+        <a class="btn btn-outline-secondary" asp-action="Print" asp-route-id="@Model.DisposalId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In biên bản</a>
+        @if (Model.CanEdit)
+        {
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#cancel-modal">Hủy biên bản</button>
+        }
+    </div>
+</div>
+
+@if (shortLines.Count > 0)
+{
+    <div class="pm-alert warn mb-4" role="status">
+        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+        Chưa ghi sổ được: @(string.Join("; ", shortLines.Select(l => l.MedicineName + " lô " + l.BatchNumber + (l.LotStatus == (byte)BatchStatus.Recalled ? " đang thu hồi" : " chỉ còn " + Format.Number(l.BatchOnHand) + " " + l.BaseUnit)))). Sửa biên bản trước khi ghi sổ.
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="d-head">
+            <h2 id="d-head" class="pm-h2 mb-3">Thông tin biên bản</h2>
+            <dl class="pm-dl">
+                <dt>Kho</dt><dd>@Model.WarehouseName</dd>
+                <dt>Ngày lập</dt><dd class="num">@Format.When(Model.DisposalDate)</dd>
+                <dt>Người lập</dt><dd>@Model.CreatedByName</dd>
+                @if (Model.PostedAt is not null)
+                {
+                    <dt>Ghi sổ lúc</dt><dd class="num">@Format.When(Model.PostedAt.Value)</dd>
+                }
+                <dt>Lý do hủy</dt><dd>@Model.Reason</dd>
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="d-total">
+            <h2 id="d-total" class="pm-h2 mb-3">Giá trị hủy</h2>
+            <div class="pm-stat" data-tone="calm">
+                <span class="l">Theo giá vốn của lô</span>
+                <span class="v">@Format.Money(Model.TotalValue)</span>
+                <span class="s">@Model.Lines.Count lô</span>
+            </div>
+            @if (Model.IsDraft)
+            {
+                <p class="form-text mb-0 mt-3">Biên bản nháp chưa trừ tồn kho. Bấm Ghi sổ khi đã kiểm tra đủ lô và số lượng.</p>
+            }
+        </section>
+    </div>
+</div>
+
+<section class="pm-card" aria-labelledby="d-lines">
+    <h2 id="d-lines" class="pm-h2 mb-3">Lô hủy</h2>
+    <div class="table-responsive">
+        <table class="pm-table">
+            <thead>
+                <tr>
+                    <th scope="col">Thuốc</th>
+                    <th scope="col">Lô, hạn dùng</th>
+                    <th scope="col" class="text-end">Số lượng</th>
+                    <th scope="col" class="text-end">Giá vốn</th>
+                    <th scope="col" class="text-end">Giá trị</th>
+                    <th scope="col">Lý do</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">@l.MedicineName</span>
+                            <div class="small text-muted-pm num">@l.MedicineCode</div>
+                        </td>
+                        <td class="small">
+                            <a class="num" asp-controller="Stock" asp-action="Batch" asp-route-id="@l.BatchId">@l.BatchNumber</a>
+                            <div class="text-muted-pm num">HSD @l.ExpiryDate.ToString("dd/MM/yyyy", vi)</div>
+                            <div class="text-muted-pm">@(l.Location ?? "Chưa xếp kệ")</div>
+                        </td>
+                        <td class="text-end num text-nowrap">
+                            @StockText.Quantity(l.Quantity, l.BaseUnit)
+                            @if (Model.IsDraft)
+                            {
+                                <div class="small text-muted-pm">Tồn lô: @Format.Number(l.BatchOnHand)</div>
+                            }
+                        </td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.UnitCost)</td>
+                        <td class="text-end num text-nowrap">@Format.Money(l.Value)</td>
+                        <td class="small">
+                            @DisposalReasonText.Of(l.ReasonType)
+                            @if (!string.IsNullOrWhiteSpace(l.ReasonNote))
+                            {
+                                <div class="text-muted-pm">@l.ReasonNote</div>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th scope="row" colspan="4" class="text-end">Tổng giá trị hủy</th>
+                    <td class="text-end num text-nowrap fw-semibold">@Format.Money(Model.TotalValue)</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</section>
+
+@if (Model.CanEdit)
+{
+    <div class="modal fade" id="post-modal" tabindex="-1" aria-labelledby="post-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Post" asp-route-id="@Model.DisposalId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="post-title">Ghi sổ biên bản @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Tồn kho của @Model.Lines.Count lô sẽ giảm theo số lượng hủy. Đã ghi sổ thì không sửa hay hủy biên bản được nữa.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chưa ghi sổ</button>
+                    <button type="submit" class="btn btn-primary">Ghi sổ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="cancel-modal" tabindex="-1" aria-labelledby="cancel-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Cancel" asp-route-id="@Model.DisposalId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="cancel-title">Hủy biên bản @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Biên bản chuyển sang trạng thái Đã hủy, vẫn lưu để tra cứu; tồn kho không đổi.</p>
+                    <label for="cancel-reason" class="form-label">Lý do hủy biên bản <span class="req">*</span></label>
+                    <input type="text" id="cancel-reason" name="reason" class="form-control" maxlength="300" required autocomplete="off" placeholder="Ví dụ: lập nhầm, thuốc vẫn dùng được" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không hủy</button>
+                    <button type="submit" class="btn btn-danger">Hủy biên bản</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

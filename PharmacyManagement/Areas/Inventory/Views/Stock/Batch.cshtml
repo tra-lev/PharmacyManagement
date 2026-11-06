@@ -16,6 +16,10 @@
             <span class="pm-badge @StockText.Tone(Model.Condition)">@StockText.Condition(Model.Condition, Model.Status)</span>
         </div>
     </div>
+    @if (Model.CanDispose)
+    {
+        <a class="btn btn-outline-secondary" asp-controller="Disposals" asp-action="Create" asp-route-batchId="@Model.BatchId"><i class="bi bi-trash3" aria-hidden="true"></i> Hủy lô này</a>
+    }
 </div>
 
 <div class="row g-3 mb-4">

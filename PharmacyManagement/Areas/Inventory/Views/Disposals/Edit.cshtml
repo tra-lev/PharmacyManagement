@@ -1,0 +1,20 @@
+﻿@model DisposalFormViewModel
+@{
+    ViewData["Title"] = "Sửa biên bản " + Model.Code;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Hủy thuốc</a> / <a asp-action="Details" asp-route-id="@Model.DisposalId">@Model.Code</a> / Sửa</p>
+        <h1 class="pm-title">Sửa biên bản hủy</h1>
+        <p class="pm-subtitle">@Model.Code · nháp, chưa trừ tồn kho.</p>
+    </div>
+</div>
+
+<partial name="_DisposalForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/disposal.js" asp-append-version="true"></script>
+}
