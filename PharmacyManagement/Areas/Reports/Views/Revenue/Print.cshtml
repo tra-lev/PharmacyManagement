@@ -1,0 +1,180 @@
+﻿@model RevenueReportViewModel
+@{
+    Layout = null;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var title = Model.IsMine ? "BÁO CÁO DOANH SỐ CÁ NHÂN" : Model.ShowProfit ? "BÁO CÁO DOANH THU VÀ LỢI NHUẬN" : "BÁO CÁO DOANH THU";
+    var period = Model.From.ToString("dd/MM/yyyy", vi) + " – " + Model.To.ToString("dd/MM/yyyy", vi);
+    string N(int n) => n.ToString("N0", vi);
+    string M(decimal v) => v < 0 ? "−" + Format.Money(Math.Abs(Math.Round(v))) : Format.Money(Math.Round(v));
+    var rows = Model.Buckets.Where(b => b.Invoices > 0 || b.Refunds != 0 || b.RestockedCost != 0).ToList();
+}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(Model.IsMine ? "Doanh số" : "Doanh thu") @period · @Model.PharmacyName</title>
+    <style>
+        @@page { size: A4; margin: 16mm 14mm; }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 24px; font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; color: #13302F; background: #fff; }
+        .sheet { max-width: 780px; margin: 0 auto; }
+        .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; border-bottom: 2px solid #13302F; padding-bottom: 12px; margin-bottom: 16px; }
+        .brand { font-size: 18px; font-weight: 700; }
+        h1 { font-size: 19px; margin: 0 0 4px; text-align: right; }
+        h2 { font-size: 14px; margin: 18px 0 8px; }
+        .right { text-align: right; }
+        .muted { color: #4E6664; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        th, td { border: 1px solid #C9D8D5; padding: 5px 8px; vertical-align: top; }
+        th { background: #F1F6F5; text-align: left; }
+        .r { text-align: right; white-space: nowrap; }
+        .b { font-weight: 700; }
+        .sum td { width: 50%; }
+        .sign { display: grid; grid-template-columns: 1fr 1fr; text-align: center; margin-top: 32px; gap: 8px; }
+        .sign div { min-height: 90px; }
+        .tools { text-align: right; margin-bottom: 16px; }
+        .tools button { font: inherit; padding: 8px 18px; border-radius: 999px; border: 0; background: #0B3B3E; color: #fff; cursor: pointer; }
+        @@media print { body { padding: 0; } .tools { display: none; } }
+    </style>
+</head>
+<body>
+    <div class="sheet">
+        <div class="tools"><button type="button" onclick="window.print()">In / Lưu PDF</button></div>
+        <div class="head">
+            <div>
+                <div class="brand">@Model.PharmacyName</div>
+                <div class="muted">Lập lúc @Format.When(DateTime.Now)</div>
+            </div>
+            <div>
+                <h1>@title</h1>
+                <div class="muted right">Từ @period@(Model.EmployeeName is null ? "" : " · " + Model.EmployeeName)</div>
+                <div class="muted right">Tính theo ngày thanh toán; hoàn trả tính theo ngày đổi trả</div>
+            </div>
+        </div>
+
+        <h2>1. Tổng hợp</h2>
+        <table class="sum">
+            <tbody>
+                <tr><td>Số hóa đơn đã thanh toán</td><td class="r">@N(Model.Invoices)</td></tr>
+                <tr><td>Tiền hàng</td><td class="r">@M(Model.Goods)</td></tr>
+                <tr><td>Chiết khấu</td><td class="r">@M(Model.Discount)</td></tr>
+                <tr><td>Doanh thu bán hàng</td><td class="r">@M(Model.Revenue)</td></tr>
+                <tr><td>Hoàn trả khách (@N(Model.RefundCount) phiếu)</td><td class="r">@M(Model.Refunds)</td></tr>
+                <tr class="b"><td>Doanh thu thuần</td><td class="r">@M(Model.NetRevenue)</td></tr>
+                @if (Model.ShowProfit)
+                {
+                    <tr><td>Giá vốn hàng bán</td><td class="r">@M(Model.Cost)</td></tr>
+                    <tr><td>Giá vốn hàng khách trả đã nhập lại kho</td><td class="r">@M(Model.RestockedCost)</td></tr>
+                    <tr class="b"><td>Lợi nhuận gộp@(Model.GrossMargin is null ? "" : " (" + Model.GrossMargin.Value.ToString("0.0", vi) + "%)")</td><td class="r">@M(Model.GrossProfit)</td></tr>
+                    if (Model.Losses is { } loss)
+                    {
+                        <tr><td>Tổn thất: hàng hủy</td><td class="r">@M(loss.Disposal)</td></tr>
+                        <tr><td>Tổn thất: hàng thu hồi</td><td class="r">@M(loss.Recall)</td></tr>
+                        <tr><td>Tổn thất: kiểm kê (thiếu trừ thừa)</td><td class="r">@M(loss.Stocktake)</td></tr>
+                        <tr><td>Tổn thất: trả nhà cung cấp được hoàn thiếu</td><td class="r">@M(loss.SupplierReturn)</td></tr>
+                        <tr class="b"><td>Lợi nhuận sau tổn thất</td><td class="r">@M(Model.ProfitAfterLosses!.Value)</td></tr>
+                    }
+                }
+            </tbody>
+        </table>
+        @if (Model.ShowProfit && Model.Losses is not null && Model.ExpiredLots > 0)
+        {
+            <p class="muted">Ghi chú: còn @N(Model.ExpiredLots) lô hết hạn trong kho, giá vốn @M(Model.ExpiredStockValue), chưa tính là lỗ.</p>
+        }
+
+        <h2>2. @(Model.Monthly ? "Theo tháng" : "Theo ngày")</h2>
+        @if (rows.Count == 0)
+        {
+            <p class="muted">Không có số liệu.</p>
+        }
+        else
+        {
+            <table>
+                <thead>
+                    <tr>
+                        <th>@(Model.Monthly ? "Tháng" : "Ngày")</th>
+                        <th class="r">Hóa đơn</th>
+                        <th class="r">Doanh thu</th>
+                        <th class="r">Hoàn trả</th>
+                        <th class="r">Doanh thu thuần</th>
+                        @if (Model.ShowProfit)
+                        {
+                            <th class="r">Lợi nhuận gộp</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in rows)
+                    {
+                        <tr>
+                            <td>@b.Label</td>
+                            <td class="r">@N(b.Invoices)</td>
+                            <td class="r">@M(b.Revenue)</td>
+                            <td class="r">@M(b.Refunds)</td>
+                            <td class="r">@M(b.NetRevenue)</td>
+                            @if (Model.ShowProfit)
+                            {
+                                <td class="r">@M(b.GrossProfit)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (Model.TopMedicines.Count > 0)
+        {
+            <h2>3. Thuốc bán nhiều nhất</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Thuốc</th>
+                        <th class="r">Số lượng</th>
+                        <th class="r">Doanh thu</th>
+                        @if (Model.ShowProfit)
+                        {
+                            <th class="r">Lợi nhuận gộp</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var m in Model.TopMedicines)
+                    {
+                        <tr>
+                            <td>@m.Name (@m.Code)</td>
+                            <td class="r">@Format.Number(m.Quantity) @m.BaseUnit</td>
+                            <td class="r">@M(m.Revenue)</td>
+                            @if (Model.ShowProfit)
+                            {
+                                <td class="r">@M(m.Profit)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        @if (Model.ShowEmployees && !Model.IsMine && Model.Employees.Count > 0)
+        {
+            <h2>4. Theo người bán</h2>
+            <table>
+                <thead>
+                    <tr><th>Người bán</th><th class="r">Hóa đơn</th><th class="r">Doanh thu</th><th class="r">Hoàn trả</th><th class="r">Doanh thu thuần</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Employees)
+                    {
+                        <tr><td>@e.Name</td><td class="r">@N(e.Invoices)</td><td class="r">@M(e.Revenue)</td><td class="r">@M(e.Refunds)</td><td class="r">@M(e.NetRevenue)</td></tr>
+                    }
+                </tbody>
+            </table>
+        }
+
+        <div class="sign">
+            <div><b>Người lập báo cáo</b><br /><span class="muted">(ký, ghi rõ họ tên)</span></div>
+            <div><b>Chủ nhà thuốc</b><br /><span class="muted">(ký, ghi rõ họ tên)</span></div>
+        </div>
+    </div>
+</body>
+</html>

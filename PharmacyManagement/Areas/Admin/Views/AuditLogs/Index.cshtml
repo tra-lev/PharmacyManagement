@@ -1,0 +1,129 @@
+﻿@model AuditLogListViewModel
+@{
+    ViewData["Title"] = "Nhật ký hoạt động";
+    var f = Model.Filter;
+    var vi = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string PageUrl(int page) => Url.Action("Index", new { f.From, f.To, f.User, f.Group, f.Q, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Quản trị</p>
+        <h1 class="pm-title">Nhật ký hoạt động</h1>
+        <p class="pm-subtitle">
+            @if (f.IsFiltered)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) thao tác</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) thao tác</text>
+            }
+            · ghi tự động, không sửa và không xóa được.
+        </p>
+    </div>
+</div>
+
+@if (Model.FilterError is not null)
+{
+    <div class="pm-alert warn mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> @Model.FilterError</div>
+}
+
+<form method="get" asp-action="Index" class="pm-card mb-4" role="search">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4 col-xl-3">
+            <label for="q" class="form-label">Tìm</label>
+            <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã phiếu, mã hóa đơn, email…" autocomplete="off" />
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <label for="from" class="form-label">Từ ngày</label>
+            <input type="date" id="from" name="From" value="@f.From" class="form-control" />
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <label for="to" class="form-label">Đến ngày</label>
+            <input type="date" id="to" name="To" value="@f.To" class="form-control" />
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <label for="user" class="form-label">Người thực hiện</label>
+            <select id="user" name="User" class="form-select">
+                <option value="">Tất cả</option>
+                @foreach (var u in Model.Users)
+                {
+                    <!option value="@u.UserId" selected="@(f.User == u.UserId)">@u.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <label for="group" class="form-label">Nhóm thao tác</label>
+            <select id="group" name="Group" class="form-select">
+                <option value="">Tất cả</option>
+                @foreach (var g in AuditText.Groups)
+                {
+                    <!option value="@g.Key" selected="@(f.Group == g.Key)">@g.Title</!option>
+                }
+            </select>
+        </div>
+        <div class="col-xl-1 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Lọc</button>
+        </div>
+    </div>
+    @if (f.IsFiltered)
+    {
+        <a class="btn btn-sm btn-outline-secondary mt-3" asp-action="Index">Bỏ lọc</a>
+    }
+</form>
+
+<section class="pm-card" aria-label="Danh sách thao tác">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty"><i class="bi bi-clock-history" aria-hidden="true"></i> Không có thao tác nào khớp bộ lọc.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Thời điểm</th>
+                        <th scope="col">Thao tác</th>
+                        <th scope="col">Đối tượng</th>
+                        <th scope="col">Người thực hiện</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td class="num text-nowrap small">@Format.When(r.CreatedAt)</td>
+                            <td>
+                                <a class="text-reset stretched-link" asp-action="Details" asp-route-id="@r.AuditLogId">
+                                    <span class="pm-badge @AuditText.Tone(r.ActionType)">@AuditText.Action(r.ActionType)</span>
+                                </a>
+                            </td>
+                            <td class="small">@AuditText.Entity(r.EntityName)@(r.EntityId is null ? "" : " · ")<span class="num">@r.EntityId</span></td>
+                            <td class="small">@r.Actor</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>

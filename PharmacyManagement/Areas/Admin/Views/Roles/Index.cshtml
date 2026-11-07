@@ -1,0 +1,34 @@
+﻿@model RoleListViewModel
+@{
+    ViewData["Title"] = "Phân quyền";
+    var vi = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Quản trị</p>
+        <h1 class="pm-title">Phân quyền</h1>
+        <p class="pm-subtitle">Ba vai trò cố định. Mỗi tài khoản có đúng một vai trò; quyền đổi ở đây áp dụng ngay cho mọi tài khoản thuộc vai trò.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-controller="Users" asp-action="Index"><i class="bi bi-person-badge" aria-hidden="true"></i> Tài khoản</a>
+</div>
+
+<div class="row g-4">
+    @foreach (var r in Model.Roles)
+    {
+        <div class="col-lg-4">
+            <section class="pm-card h-100 d-flex flex-column" aria-labelledby="role-@r.Name">
+                <h2 id="role-@r.Name" class="pm-h2 mb-2">@r.DisplayName</h2>
+                <p class="small text-muted-pm flex-grow-1">@r.Description</p>
+                <dl class="pm-dl">
+                    <dt>Tài khoản</dt><dd class="num">@N(r.Accounts)</dd>
+                    <dt>Quyền đang có</dt><dd class="num">@N(r.Granted) / @N(r.Total)</dd>
+                </dl>
+                <a class="btn @(r.Editable && Model.CanEdit ? "btn-primary" : "btn-outline-secondary") mt-2" asp-action="Edit" asp-route-id="@r.Name">
+                    @(r.Editable && Model.CanEdit ? "Sửa quyền" : "Xem quyền")
+                </a>
+            </section>
+        </div>
+    }
+</div>

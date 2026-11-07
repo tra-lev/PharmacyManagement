@@ -1,0 +1,327 @@
+﻿@model RevenueReportViewModel
+@{
+    var mine = Model.IsMine;
+    ViewData["Title"] = mine ? "Doanh số của tôi" : "Doanh thu & lợi nhuận";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var action = mine ? "Mine" : "Index";
+    var today = DateOnly.FromDateTime(DateTime.Now);
+    var monthStart = new DateOnly(today.Year, today.Month, 1);
+    string D(DateOnly d) => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+    string PresetUrl(DateOnly from, DateOnly to, string by) => Url.Action(action, new { From = D(from), To = D(to), By = by, f.EmployeeId })!;
+    var presets = new (string Label, DateOnly From, DateOnly To, string By)[]
+    {
+        ("Hôm nay", today, today, "day"),
+        ("7 ngày", today.AddDays(-6), today, "day"),
+        ("Tháng này", monthStart, today, "day"),
+        ("Tháng trước", monthStart.AddMonths(-1), monthStart.AddDays(-1), "day"),
+        ("Năm nay", new DateOnly(today.Year, 1, 1), today, "month")
+    };
+    var period = Model.From == Model.To
+        ? Model.From.ToString("dd/MM/yyyy", vi)
+        : Model.From.ToString("dd/MM/yyyy", vi) + " – " + Model.To.ToString("dd/MM/yyyy", vi);
+    string N(int n) => n.ToString("N0", vi);
+    string Signed(decimal v) => v < 0 ? "−" + Format.Money(Math.Abs(Math.Round(v))) : Format.Money(Math.Round(v));
+    var printUrl = Url.Action("Print", new { f.From, f.To, f.By, f.EmployeeId, mine })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Báo cáo</p>
+        <h1 class="pm-title">@ViewData["Title"]</h1>
+        <p class="pm-subtitle">
+            @period@(Model.EmployeeName is not null && !mine ? " · người bán: " + Model.EmployeeName : "") ·
+            tính theo ngày thanh toán; tiền hoàn trả khách tính theo ngày đổi trả.
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary" href="@printUrl" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In báo cáo</a>
+</div>
+
+@if (Model.FilterError is not null)
+{
+    <div class="pm-alert warn mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> @Model.FilterError</div>
+}
+
+<form method="get" asp-action="@action" class="pm-card mb-4" aria-label="Chọn khoảng thời gian">
+    <div class="row g-3 align-items-end">
+        <div class="col-6 col-md-3 col-xl-2">
+            <label for="from" class="form-label">Từ ngày</label>
+            <input type="date" id="from" name="From" value="@f.From" class="form-control" max="@D(today)" />
+        </div>
+        <div class="col-6 col-md-3 col-xl-2">
+            <label for="to" class="form-label">Đến ngày</label>
+            <input type="date" id="to" name="To" value="@f.To" class="form-control" />
+        </div>
+        <div class="col-6 col-md-3 col-xl-2">
+            <label for="by" class="form-label">Xem theo</label>
+            <select id="by" name="By" class="form-select">
+                <!option value="day" selected="@(!Model.Monthly)">Ngày</!option>
+                <!option value="month" selected="@Model.Monthly">Tháng</!option>
+            </select>
+        </div>
+        @if (Model.ShowEmployees && !mine)
+        {
+            <div class="col-6 col-md-3 col-xl-3">
+                <label for="seller" class="form-label">Người bán</label>
+                <select id="seller" name="EmployeeId" class="form-select">
+                    <option value="">Toàn nhà thuốc</option>
+                    @foreach (var s in Model.Sellers)
+                    {
+                        <!option value="@s.Id" selected="@(f.EmployeeId == s.Id)">@s.Name</!option>
+                    }
+                </select>
+            </div>
+        }
+        <div class="col-12 col-xl-auto">
+            <button type="submit" class="btn btn-primary">Xem báo cáo</button>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-3" aria-label="Chọn nhanh">
+        @foreach (var p in presets)
+        {
+            <a class="btn btn-sm btn-outline-secondary" href="@PresetUrl(p.From, p.To, p.By)">@p.Label</a>
+        }
+    </div>
+    @if (Model.ForcedMonthly)
+    {
+        <p class="form-text mb-0 mt-2">Khoảng thời gian dài hơn @RevenueFilter.MaxDailyDays ngày nên hiện theo tháng.</p>
+    }
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="pm-stat h-100" data-tone="calm">
+            <span class="l">Doanh thu thuần</span>
+            <span class="v">@Format.Money(Model.NetRevenue)</span>
+            <span class="s">@N(Model.Invoices) hóa đơn đã thanh toán</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="pm-stat h-100" data-tone="calm">
+            <span class="l">Doanh thu bán hàng</span>
+            <span class="v">@Format.Money(Model.Revenue)</span>
+            <span class="s">Tiền hàng @Format.Money(Model.Goods) − chiết khấu @Format.Money(Model.Discount)</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="pm-stat h-100" data-tone="@(Model.Refunds > 0 ? "wait" : "calm")">
+            <span class="l">Hoàn trả khách</span>
+            <span class="v">@Format.Money(Model.Refunds)</span>
+            <span class="s">@N(Model.RefundCount) phiếu đổi trả</span>
+        </div>
+    </div>
+    @if (Model.ShowProfit)
+    {
+        <div class="col-sm-6 col-xl-3">
+            <div class="pm-stat h-100" data-tone="@(Model.GrossProfit < 0 ? "bad" : "good")">
+                <span class="l">Lợi nhuận gộp</span>
+                <span class="v">@Signed(Model.GrossProfit)</span>
+                <span class="s">@(Model.GrossMargin is null ? "Chưa có doanh thu" : "Tỷ suất " + Model.GrossMargin.Value.ToString("0.0", vi) + "% doanh thu thuần")</span>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="col-sm-6 col-xl-3">
+            <div class="pm-stat h-100" data-tone="calm">
+                <span class="l">Bình quân mỗi hóa đơn</span>
+                <span class="v">@(Model.Invoices == 0 ? "—" : Format.Money(Math.Round(Model.Revenue / Model.Invoices)))</span>
+            </div>
+        </div>
+    }
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="r-chart">
+    <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+        <h2 id="r-chart" class="pm-h2 mb-0">@(Model.Monthly ? "Theo tháng" : "Theo ngày")</h2>
+        <div class="pm-chart-legend small">
+            <span><i class="pm-key rev" aria-hidden="true"></i> Doanh thu thuần</span>
+            @if (Model.ShowProfit)
+            {
+                <span><i class="pm-key profit" aria-hidden="true"></i> Lợi nhuận gộp</span>
+            }
+        </div>
+    </div>
+    <partial name="_Chart" model="new RevenueChart(Model.Buckets, Model.ShowProfit)" />
+
+    <details class="mt-3">
+        <summary class="small">Xem bảng số liệu</summary>
+        <div class="table-responsive mt-2">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">@(Model.Monthly ? "Tháng" : "Ngày")</th>
+                        <th scope="col" class="text-end">Hóa đơn</th>
+                        <th scope="col" class="text-end">Doanh thu</th>
+                        <th scope="col" class="text-end">Hoàn trả</th>
+                        <th scope="col" class="text-end">Doanh thu thuần</th>
+                        @if (Model.ShowProfit)
+                        {
+                            <th scope="col" class="text-end">Giá vốn</th>
+                            <th scope="col" class="text-end">Lợi nhuận gộp</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Buckets.Where(b => b.Invoices > 0 || b.Refunds != 0 || b.RestockedCost != 0))
+                    {
+                        <tr>
+                            <td class="num text-nowrap">@b.Label</td>
+                            <td class="text-end num">@N(b.Invoices)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(b.Revenue)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(b.Refunds)</td>
+                            <td class="text-end num text-nowrap fw-semibold">@Format.Money(b.NetRevenue)</td>
+                            @if (Model.ShowProfit)
+                            {
+                                <td class="text-end num text-nowrap">@Format.Money(Math.Round(b.Cost - b.RestockedCost))</td>
+                                <td class="text-end num text-nowrap">@Signed(b.GrossProfit)</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </details>
+</section>
+
+@if (Model.ShowProfit)
+{
+    <section class="pm-card mb-4" aria-labelledby="r-profit">
+        <h2 id="r-profit" class="pm-h2 mb-3">Lợi nhuận</h2>
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <dl class="pm-dl mb-0">
+                    <dt>Doanh thu thuần</dt><dd class="num text-end">@Format.Money(Model.NetRevenue)</dd>
+                    <dt>Giá vốn hàng bán</dt><dd class="num text-end">− @Format.Money(Math.Round(Model.Cost))</dd>
+                    <dt>Giá vốn hàng khách trả đã nhập lại kho</dt><dd class="num text-end">+ @Format.Money(Math.Round(Model.RestockedCost))</dd>
+                    <dt class="fw-semibold">Lợi nhuận gộp</dt><dd class="num text-end fw-semibold">@Signed(Model.GrossProfit)</dd>
+                </dl>
+            </div>
+            <div class="col-lg-6">
+                @if (Model.Losses is { } loss)
+                {
+                    <dl class="pm-dl mb-0">
+                        <dt>Hàng hủy</dt><dd class="num text-end">− @Format.Money(Math.Round(loss.Disposal))</dd>
+                        <dt>Hàng thu hồi</dt><dd class="num text-end">− @Format.Money(Math.Round(loss.Recall))</dd>
+                        <dt>Kiểm kê (thiếu trừ thừa)</dt><dd class="num text-end">@(loss.Stocktake < 0 ? "+ " + Format.Money(Math.Round(-loss.Stocktake)) : "− " + Format.Money(Math.Round(loss.Stocktake)))</dd>
+                        <dt>Trả nhà cung cấp được hoàn thiếu</dt><dd class="num text-end">@(loss.SupplierReturn < 0 ? "+ " + Format.Money(Math.Round(-loss.SupplierReturn)) : "− " + Format.Money(Math.Round(loss.SupplierReturn)))</dd>
+                        <dt class="fw-semibold">Lợi nhuận sau tổn thất</dt><dd class="num text-end fw-semibold">@Signed(Model.ProfitAfterLosses!.Value)</dd>
+                    </dl>
+                }
+                else
+                {
+                    <p class="text-muted-pm mb-0">Tổn thất hàng tồn kho (hủy, thu hồi, kiểm kê, trả nhà cung cấp) chỉ tính cho toàn nhà thuốc. Bỏ lọc người bán để xem.</p>
+                }
+            </div>
+        </div>
+        <p class="form-text mb-0 mt-3">Giá vốn theo giá nhập của từng lô. Tiền nhà cung cấp chưa hoàn là khoản phải thu, không tính là lỗ.</p>
+        @if (Model.Losses is not null && Model.ExpiredLots > 0)
+        {
+            <div class="pm-alert warn mt-3 mb-0" role="status">
+                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                Đang có @N(Model.ExpiredLots) lô hết hạn còn trong kho, giá vốn @Format.Money(Math.Round(Model.ExpiredStockValue)). Khoản này chưa tính là lỗ cho tới khi lập biên bản hủy hoặc trả nhà cung cấp.
+            </div>
+        }
+    </section>
+}
+
+<div class="row g-4 mb-4">
+    <div class="@(Model.Methods.Count > 0 ? "col-xl-8" : "col-12")">
+        <section class="pm-card h-100" aria-labelledby="r-top">
+            <h2 id="r-top" class="pm-h2 mb-3">Thuốc bán nhiều nhất</h2>
+            @if (Model.TopMedicines.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Chưa có hóa đơn nào được thanh toán trong khoảng này.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="pm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Thuốc</th>
+                                <th scope="col" class="text-end">Số lượng</th>
+                                <th scope="col" class="text-end">Doanh thu</th>
+                                @if (Model.ShowProfit)
+                                {
+                                    <th scope="col" class="text-end">Lợi nhuận gộp</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in Model.TopMedicines)
+                            {
+                                <tr>
+                                    <td>@m.Name <div class="small text-muted-pm num">@m.Code</div></td>
+                                    <td class="text-end num text-nowrap">@Format.Number(m.Quantity) @m.BaseUnit</td>
+                                    <td class="text-end num text-nowrap">@Format.Money(m.Revenue)</td>
+                                    @if (Model.ShowProfit)
+                                    {
+                                        <td class="text-end num text-nowrap">@Signed(m.Profit)</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="form-text mb-0 mt-2">Doanh thu bán hàng trước khi trừ hoàn trả.</p>
+            }
+        </section>
+    </div>
+    @if (Model.Methods.Count > 0)
+    {
+        <div class="col-xl-4">
+            <section class="pm-card h-100" aria-labelledby="r-methods">
+                <h2 id="r-methods" class="pm-h2 mb-3">Hình thức thanh toán</h2>
+                <dl class="pm-dl mb-0">
+                    @foreach (var m in Model.Methods)
+                    {
+                        <dt>@m.Name <span class="small text-muted-pm">(@N(m.Count) lần)</span></dt>
+                        <dd class="num text-end">@Format.Money(m.Amount)</dd>
+                    }
+                </dl>
+            </section>
+        </div>
+    }
+</div>
+
+@if (Model.ShowEmployees && !mine && Model.Employees.Count > 0)
+{
+    <section class="pm-card" aria-labelledby="r-staff">
+        <h2 id="r-staff" class="pm-h2 mb-3">Theo người bán</h2>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Người bán</th>
+                        <th scope="col" class="text-end">Hóa đơn</th>
+                        <th scope="col" class="text-end">Doanh thu</th>
+                        <th scope="col" class="text-end">Hoàn trả</th>
+                        <th scope="col" class="text-end">Doanh thu thuần</th>
+                        @if (Model.ShowProfit)
+                        {
+                            <th scope="col" class="text-end">Giá vốn</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Employees)
+                    {
+                        <tr>
+                            <td><a href="@Url.Action("Index", new { f.From, f.To, f.By, EmployeeId = e.EmployeeId })">@e.Name</a></td>
+                            <td class="text-end num">@N(e.Invoices)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(e.Revenue)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(e.Refunds)</td>
+                            <td class="text-end num text-nowrap fw-semibold">@Format.Money(e.NetRevenue)</td>
+                            @if (Model.ShowProfit)
+                            {
+                                <td class="text-end num text-nowrap">@Format.Money(Math.Round(e.Cost))</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="form-text mb-0 mt-2">Hoàn trả tính cho người đã bán hóa đơn gốc.</p>
+    </section>
+}

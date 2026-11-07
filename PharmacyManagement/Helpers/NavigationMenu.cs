@@ -63,8 +63,8 @@ public static class NavigationMenu
         }),
         new MenuGroup("reports", "Báo cáo", new[]
         {
-            new MenuItem("revenue", "Doanh thu & lợi nhuận", "bar-chart", Soon("revenue"), Any(P.F4_1_1, P.F4_1_2), false),
-            new MenuItem("mysales", "Doanh số của tôi", "bar-chart", Soon("mysales"), Any(P.F4_1_1_Own), false, HideIfHas: P.F4_1_1),
+            new MenuItem("revenue", "Doanh thu & lợi nhuận", "bar-chart", "/Reports/Revenue", Any(P.F4_1_1, P.F4_1_2), true),
+            new MenuItem("mysales", "Doanh số của tôi", "bar-chart", "/Reports/Revenue/Mine", Any(P.F4_1_1_Own), true, HideIfHas: P.F4_1_1),
             new MenuItem("nxt", "Nhập – xuất – tồn", "arrow-left-right", Soon("nxt"), Any(P.F4_2_1, P.F4_2_2), false),
             new MenuItem("gpp", "Sổ GPP", "journal-text", Soon("gpp"), Any(P.F4_3_1, P.F4_3_2, P.F4_3_3), false),
             new MenuItem("sync", "Liên thông dữ liệu", "arrow-repeat", Soon("sync"), Any(P.F4_4_2_3), false)
@@ -72,9 +72,9 @@ public static class NavigationMenu
         new MenuGroup("admin", "Quản trị", new[]
         {
             new MenuItem(Accounts, "Tài khoản", "person-badge", "/Admin/Users", Any(P.F1_3_1), true),
-            new MenuItem("roles", "Phân quyền", "shield-lock", Soon("roles"), Any(P.F1_3_3), false),
+            new MenuItem("roles", "Phân quyền", "shield-lock", "/Admin/Roles", Any(P.F1_3_2, P.F1_3_3), true),
             new MenuItem("settings", "Thiết lập", "sliders", "/Inventory/Policies", Any(P.F1_5_2, P.F1_5_3), true),
-            new MenuItem("audit", "Nhật ký hoạt động", "clock-history", Soon("audit"), Any(P.Sys09ViewAuditLog), false)
+            new MenuItem("audit", "Nhật ký hoạt động", "clock-history", "/Admin/AuditLogs", Any(P.Sys09ViewAuditLog), true)
         })
     };
 
