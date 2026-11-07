@@ -1,0 +1,32 @@
+﻿@model IReadOnlyList<SupplierPaymentLine>
+
+<div class="table-responsive">
+    <table class="pm-table">
+        <thead>
+            <tr>
+                <th scope="col">Phiếu</th>
+                <th scope="col">Chứng từ</th>
+                <th scope="col">Hình thức</th>
+                <th scope="col" class="text-end">Số tiền</th>
+                <th scope="col">Người lập</th>
+                <th scope="col">Trạng thái</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var p in Model)
+            {
+                <tr class="pm-row-link">
+                    <td>
+                        <a class="fw-semibold text-reset stretched-link num" asp-controller="SupplierPayments" asp-action="Details" asp-route-id="@p.SupplierPaymentId">@p.Code</a>
+                        <div class="small text-muted-pm">@SupplierPaymentText.Type(p.Type) · @Format.When(p.PaidAt)</div>
+                    </td>
+                    <td class="small num">@(p.DocumentCode ?? "—")</td>
+                    <td class="small">@SupplierPaymentText.Method(p.Method)@(p.Reference is null ? "" : " · " + p.Reference)</td>
+                    <td class="text-end num text-nowrap">@Format.Money(p.Amount)</td>
+                    <td class="small">@p.EmployeeName</td>
+                    <td><span class="pm-badge @SupplierPaymentText.Tone(p.Status)">@SupplierPaymentText.Status(p.Status)</span></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

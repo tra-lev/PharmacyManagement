@@ -1,0 +1,109 @@
+﻿@model SupplierPaymentDetailsViewModel
+@{
+    var kind = SupplierPaymentText.Type(Model.Type);
+    ViewData["Title"] = kind + " " + Model.Code;
+    var voided = Model.Status == (byte)PaymentStatus.Voided;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Công nợ nhà cung cấp</a> / <a asp-action="Payments">Phiếu chi, thu</a> / @Model.Code</p>
+        <h1 class="pm-title">@kind @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @SupplierPaymentText.Tone(Model.Status)">@SupplierPaymentText.Status(Model.Status)</span>
+        </div>
+    </div>
+    @if (Model.CanVoid)
+    {
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#void-modal">Hủy phiếu</button>
+    }
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="p-head">
+            <h2 id="p-head" class="pm-h2 mb-3">Thông tin phiếu</h2>
+            <dl class="pm-dl">
+                <dt>Nhà cung cấp</dt>
+                <dd><a asp-action="Supplier" asp-route-id="@Model.SupplierId">@Model.SupplierName</a></dd>
+                @if (Model.GoodsReceiptCode is not null)
+                {
+                    <dt>Phiếu nhập</dt>
+                    <dd class="num">
+                        @if (Model.CanOpenReceipts)
+                        {
+                            <a asp-controller="Receipts" asp-action="Details" asp-route-id="@Model.GoodsReceiptId">@Model.GoodsReceiptCode</a>
+                        }
+                        else
+                        {
+                            @Model.GoodsReceiptCode
+                        }
+                    </dd>
+                }
+                @if (Model.SupplierReturnCode is not null)
+                {
+                    <dt>Phiếu trả</dt>
+                    <dd class="num">
+                        @if (Model.CanOpenReturns)
+                        {
+                            <a asp-controller="SupplierReturns" asp-action="Details" asp-route-id="@Model.SupplierReturnId">@Model.SupplierReturnCode</a>
+                        }
+                        else
+                        {
+                            @Model.SupplierReturnCode
+                        }
+                    </dd>
+                }
+                <dt>Thời điểm</dt><dd class="num">@Format.When(Model.PaidAt)</dd>
+                <dt>Người lập</dt><dd>@Model.EmployeeName</dd>
+                <dt>Hình thức</dt><dd>@SupplierPaymentText.Method(Model.Method)</dd>
+                @if (!string.IsNullOrWhiteSpace(Model.Reference))
+                {
+                    <dt>Mã giao dịch</dt><dd class="num">@Model.Reference</dd>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                {
+                    <dt>Ghi chú</dt><dd class="pm-pre">@Model.Notes</dd>
+                }
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="p-money">
+            <h2 id="p-money" class="pm-h2 mb-3">Số tiền</h2>
+            <div class="pm-stat" data-tone="@(voided ? "calm" : Model.IsRefund ? "good" : "wait")">
+                <span class="l">@(Model.IsRefund ? "Nhà cung cấp hoàn" : "Đã trả nhà cung cấp")</span>
+                <span class="v">@Format.Money(Model.Amount)</span>
+                @if (voided)
+                {
+                    <span class="s">Phiếu đã hủy, không còn tính vào công nợ.</span>
+                }
+            </div>
+        </section>
+    </div>
+</div>
+
+@if (Model.CanVoid)
+{
+    <div class="modal fade" id="void-modal" tabindex="-1" aria-labelledby="void-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Void" asp-route-id="@Model.SupplierPaymentId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="void-title">Hủy phiếu @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@(Model.IsRefund
+                        ? "Số tiền này không còn tính là đã nhận; phiếu trả quay lại chờ tiền hoàn."
+                        : "Số tiền này không còn tính là đã trả; phiếu nhập quay lại còn nợ.") Phiếu vẫn được lưu để tra cứu.</p>
+                    <label for="void-reason" class="form-label">Lý do hủy phiếu <span class="req">*</span></label>
+                    <input type="text" id="void-reason" name="reason" class="form-control" maxlength="300" required autocomplete="off" placeholder="Ví dụ: ghi nhầm số tiền" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không hủy</button>
+                    <button type="submit" class="btn btn-danger">Hủy phiếu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

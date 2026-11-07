@@ -1,0 +1,159 @@
+﻿@model SupplierDebtViewModel
+@{
+    ViewData["Title"] = "Công nợ " + Model.Name;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Công nợ nhà cung cấp</a> / @Model.Code</p>
+        <h1 class="pm-title">@Model.Name</h1>
+        <p class="pm-subtitle">
+            @(string.Join(" · ", new[] { Model.ContactPerson, Model.Phone }.Where(x => !string.IsNullOrWhiteSpace(x))))
+        </p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-action="Payments" asp-route-Q="@Model.Name"><i class="bi bi-receipt" aria-hidden="true"></i> Phiếu chi, thu của nhà cung cấp</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="pm-stat h-100" data-tone="calm">
+            <span class="l">Tiền hàng đã nhập</span>
+            <span class="v">@Format.Money(Model.Purchased)</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="pm-stat h-100" data-tone="calm">
+            <span class="l">Đã thanh toán</span>
+            <span class="v">@Format.Money(Model.Paid)</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="pm-stat h-100" data-tone="@(Model.Remaining > 0 ? "warn" : "calm")">
+            <span class="l">Còn nợ</span>
+            <span class="v">@Format.Money(Model.Remaining)</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="pm-stat h-100" data-tone="@(Model.RefundPending > 0 ? "wait" : "calm")">
+            <span class="l">Tiền hoàn chờ nhận</span>
+            <span class="v">@Format.Money(Model.RefundPending)</span>
+        </div>
+    </div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="s-receipts">
+    <h2 id="s-receipts" class="pm-h2 mb-3">Phiếu nhập còn nợ</h2>
+    @if (Model.OpenReceipts.Count == 0)
+    {
+        <p class="text-muted-pm mb-0">Không còn phiếu nhập nào chưa thanh toán đủ.</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Phiếu nhập</th>
+                        <th scope="col" class="text-end">Tổng tiền</th>
+                        <th scope="col" class="text-end">Đã thanh toán</th>
+                        <th scope="col" class="text-end">Còn nợ</th>
+                        @if (Model.CanPay)
+                        {
+                            <th scope="col"><span class="visually-hidden">Thao tác</span></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.OpenReceipts)
+                    {
+                        <tr>
+                            <td>
+                                @if (Model.CanOpenReceipts)
+                                {
+                                    <a class="fw-semibold num" asp-controller="Receipts" asp-action="Details" asp-route-id="@r.GoodsReceiptId">@r.Code</a>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold num">@r.Code</span>
+                                }
+                                <div class="small text-muted-pm num">@r.ReceiptDate.ToString("dd/MM/yyyy", vi)@(r.InvoiceNumber is null ? "" : " · HĐ " + r.InvoiceNumber)</div>
+                            </td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.Total)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.Paid)</td>
+                            <td class="text-end num text-nowrap fw-semibold">@Format.Money(r.Remaining)</td>
+                            @if (Model.CanPay)
+                            {
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-primary" asp-action="Pay" asp-route-receiptId="@r.GoodsReceiptId"><i class="bi bi-cash" aria-hidden="true"></i> Thanh toán</a>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (Model.OpenReturns.Count > 0)
+{
+    <section class="pm-card mb-4" aria-labelledby="s-returns">
+        <h2 id="s-returns" class="pm-h2 mb-3">Phiếu trả chờ tiền hoàn</h2>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Phiếu trả</th>
+                        <th scope="col" class="text-end">Tiền hoàn</th>
+                        <th scope="col" class="text-end">Đã nhận</th>
+                        <th scope="col" class="text-end">Còn chờ</th>
+                        @if (Model.CanRefund)
+                        {
+                            <th scope="col"><span class="visually-hidden">Thao tác</span></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.OpenReturns)
+                    {
+                        <tr>
+                            <td>
+                                @if (Model.CanOpenReturns)
+                                {
+                                    <a class="fw-semibold num" asp-controller="SupplierReturns" asp-action="Details" asp-route-id="@r.SupplierReturnId">@r.Code</a>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold num">@r.Code</span>
+                                }
+                                <div class="small text-muted-pm num">@r.ReturnDate.ToString("dd/MM/yyyy", vi)</div>
+                            </td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.Total)</td>
+                            <td class="text-end num text-nowrap">@Format.Money(r.Refunded)</td>
+                            <td class="text-end num text-nowrap fw-semibold">@Format.Money(r.Remaining)</td>
+                            @if (Model.CanRefund)
+                            {
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-primary" asp-controller="SupplierReturns" asp-action="Details" asp-route-id="@r.SupplierReturnId" asp-fragment="d-refund"><i class="bi bi-cash-coin" aria-hidden="true"></i> Thu tiền hoàn</a>
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
+
+<section class="pm-card" aria-labelledby="s-payments">
+    <h2 id="s-payments" class="pm-h2 mb-3">Phiếu chi, thu gần đây</h2>
+    @if (Model.Payments.Count == 0)
+    {
+        <p class="text-muted-pm mb-0">Chưa có phiếu chi hay phiếu thu nào với nhà cung cấp này.</p>
+    }
+    else
+    {
+        <partial name="_PaymentLines" model="Model.Payments" />
+    }
+</section>

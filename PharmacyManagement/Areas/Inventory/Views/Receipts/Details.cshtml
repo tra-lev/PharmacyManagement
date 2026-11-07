@@ -16,9 +16,17 @@
             <span class="pm-badge mute">@(Model.PurchaseOrderCode is null ? "Ngoài đơn đặt hàng" : "Theo đơn " + Model.PurchaseOrderCode)</span>
         </div>
     </div>
-    @if (Model.CanEdit || Model.CanPost)
+    @if (Model.CanEdit || Model.CanPost || Model.CanPay || Model.CanReturnToSupplier)
     {
         <div class="d-flex flex-wrap gap-2">
+            @if (Model.CanPay)
+            {
+                <a class="btn btn-primary" asp-controller="SupplierPayments" asp-action="Pay" asp-route-receiptId="@Model.GoodsReceiptId"><i class="bi bi-cash" aria-hidden="true"></i> Thanh toán</a>
+            }
+            @if (Model.CanReturnToSupplier)
+            {
+                <a class="btn btn-outline-secondary" asp-controller="SupplierReturns" asp-action="Create" asp-route-receiptId="@Model.GoodsReceiptId"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Trả hàng nhà cung cấp</a>
+            }
             @if (Model.CanPost)
             {
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#post-modal"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> Nhập kho</button>
@@ -53,6 +61,24 @@
                 <span class="v">@Format.Money(Model.TotalAmount)</span>
                 <span class="small text-muted-pm">@Model.Lines.Count dòng · @Model.Lines.Count(l => l.BatchId is not null) lô đã sinh</span>
             </div>
+            @if (Model.PaidAmount is not null)
+            {
+                <p class="mb-0 mt-3">
+                    Đã thanh toán <span class="num fw-semibold">@Format.Money(Model.PaidAmount.Value)</span> ·
+                    @if (Model.Remaining > 0)
+                    {
+                        <text>còn nợ <span class="num fw-semibold">@Format.Money(Model.Remaining)</span></text>
+                    }
+                    else
+                    {
+                        <text>đã thanh toán đủ</text>
+                    }
+                    @if (Model.CanOpenPayments)
+                    {
+                        <br /><a class="small" asp-controller="SupplierPayments" asp-action="Payments" asp-route-Q="@Model.Code">Xem phiếu chi của phiếu nhập này</a>
+                    }
+                </p>
+            }
             @if (inspecting)
             {
                 <p class="form-text mb-0 mt-3">Phiếu đang kiểm nhận chưa cộng tồn kho. Bấm Nhập kho khi đã đủ số lô, hạn dùng, kệ cho mọi dòng có hàng tốt.</p>

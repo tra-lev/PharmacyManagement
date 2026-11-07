@@ -203,4 +203,18 @@ public sealed class ReceiptDetailsViewModel
 
     public bool CanEdit { get; set; }
     public bool CanPost { get; set; }
+
+    /// <summary>Đã thanh toán (phiếu chi còn hiệu lực) — chỉ có khi phiếu đã nhập kho (DEC-44).</summary>
+    public decimal? PaidAmount { get; set; }
+
+    public decimal Remaining => PaidAmount is null ? 0 : Math.Max(0, TotalAmount - PaidAmount.Value);
+
+    /// <summary>Lập phiếu chi (2.2.5) — phiếu đã nhập kho, còn nợ.</summary>
+    public bool CanPay { get; set; }
+
+    /// <summary>Lập phiếu trả NCC từ phiếu nhập này (2.3.1).</summary>
+    public bool CanReturnToSupplier { get; set; }
+
+    /// <summary>Mở trang công nợ nhà cung cấp.</summary>
+    public bool CanOpenPayments { get; set; }
 }

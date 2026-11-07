@@ -1,0 +1,237 @@
+﻿@model RecallDetailsViewModel
+@{
+    ViewData["Title"] = "Phiếu thu hồi " + Model.Code;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    var open = Model.Batches.Where(b => !b.Done).ToList();
+    var i = 0;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Thu hồi thuốc</a> / @Model.Code</p>
+        <h1 class="pm-title">Phiếu thu hồi @Model.Code</h1>
+        <p class="pm-subtitle">@Model.MedicineName · <span class="num">@Model.MedicineCode</span></p>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @RecallStatusText.Tone(Model.Status)">@RecallStatusText.Of(Model.Status)</span>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (Model.CanRecover && Model.AllDone)
+        {
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#complete-modal"><i class="bi bi-check2-circle" aria-hidden="true"></i> Hoàn tất thu hồi</button>
+        }
+        <a class="btn btn-outline-secondary" asp-action="Print" asp-route-id="@Model.RecallId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In phiếu</a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="r-head">
+            <h2 id="r-head" class="pm-h2 mb-3">Thông báo thu hồi</h2>
+            <dl class="pm-dl">
+                <dt>Số công văn</dt><dd class="num">@(Model.NoticeNumber ?? "—")</dd>
+                <dt>Ngày công văn</dt><dd class="num">@(Model.NoticeDate?.ToString("dd/MM/yyyy", vi) ?? "—")</dd>
+                <dt>Lý do</dt><dd class="pm-pre">@Model.Reason</dd>
+                <dt>Tiếp nhận</dt><dd>@Model.CreatedByName · <span class="num">@Format.When(Model.CreatedAt)</span></dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="r-progress">
+            <h2 id="r-progress" class="pm-h2 mb-3">Tiến độ</h2>
+            <div class="pm-stat" data-tone="@(Model.IsCompleted ? "good" : Model.AllDone ? "calm" : "warn")">
+                <span class="l">Đã thu hồi / tồn lúc thu hồi</span>
+                <span class="v">@Format.Number(Model.TotalRecovered) / @StockText.Quantity(Model.TotalAtRecall, Model.BaseUnit)</span>
+                <span class="s">
+                    @if (Model.IsCompleted)
+                    {
+                        <text>Phiếu đã hoàn tất.</text>
+                    }
+                    else if (Model.AllDone)
+                    {
+                        <text>Mọi lô đã thu hồi xong. Bấm Hoàn tất thu hồi để đóng phiếu.</text>
+                    }
+                    else
+                    {
+                        <text>@N(open.Count) lô còn tồn chưa thu hồi.</text>
+                    }
+                </span>
+            </div>
+        </section>
+    </div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="r-lots">
+    <h2 id="r-lots" class="pm-h2 mb-3">Lô bị thu hồi</h2>
+    @if (Model.CanRecover && open.Count > 0)
+    {
+        <p class="form-text mt-0">Nhập số lượng đã gom khỏi kệ cho từng lô rồi bấm Ghi thu hồi. Tồn kho giảm đúng số đó.</p>
+    }
+    <form asp-action="Recover" asp-route-id="@Model.RecallId" method="post" novalidate>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Lô, hạn dùng</th>
+                        <th scope="col">Vị trí</th>
+                        <th scope="col" class="text-end">Tồn lúc thu hồi</th>
+                        <th scope="col" class="text-end">Đã thu hồi</th>
+                        <th scope="col" class="text-end">Tồn hiện tại</th>
+                        @if (Model.CanRecover && open.Count > 0)
+                        {
+                            <th scope="col" class="text-end">Thu hồi lần này</th>
+                            <th scope="col">Ghi chú</th>
+                        }
+                        else
+                        {
+                            <th scope="col">Ghi chú</th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Batches)
+                    {
+                        <tr>
+                            <td>
+                                @if (Model.CanOpenBatches)
+                                {
+                                    <a class="fw-semibold num" asp-controller="Stock" asp-action="Batch" asp-route-id="@b.BatchId">@b.BatchNumber</a>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold num">@b.BatchNumber</span>
+                                }
+                                <div class="small text-muted-pm num">HSD @b.ExpiryDate.ToString("dd/MM/yyyy", vi)</div>
+                            </td>
+                            <td class="small">@(b.Location ?? "—")</td>
+                            <td class="text-end num text-nowrap">@StockText.Quantity(b.QuantityAtRecall, Model.BaseUnit)</td>
+                            <td class="text-end num text-nowrap">@Format.Number(b.Recovered)</td>
+                            <td class="text-end num text-nowrap">
+                                @Format.Number(b.OnHand)
+                                @if (b.Done)
+                                {
+                                    <div class="small text-muted-pm">Xong</div>
+                                }
+                            </td>
+                            @if (Model.CanRecover && open.Count > 0)
+                            {
+                                if (b.Done)
+                                {
+                                    <td class="text-end text-muted-pm">—</td>
+                                    <td class="small pm-pre">@(b.Notes ?? "—")</td>
+                                }
+                                else
+                                {
+                                    var p = "Lines[" + i.ToString(CultureInfo.InvariantCulture) + "].";
+                                    <td class="text-end">
+                                        <input type="hidden" name="@(p)RecallBatchId" value="@b.RecallBatchId" />
+                                        <label for="rq-@i" class="visually-hidden">Số lượng thu hồi lô @b.BatchNumber</label>
+                                        <input type="number" id="rq-@i" name="@(p)Quantity" value="@Format.Input(b.Recoverable)" class="form-control text-end pm-cell-input" min="0" max="@Format.Input(b.Recoverable)" step="any" inputmode="decimal" />
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(b.Notes))
+                                        {
+                                            <div class="small text-muted-pm pm-pre mb-1">@b.Notes</div>
+                                        }
+                                        <label for="rn-@i" class="visually-hidden">Ghi chú lô @b.BatchNumber</label>
+                                        <input type="text" id="rn-@i" name="@(p)Notes" class="form-control pm-cell-input" maxlength="500" autocomplete="off" placeholder="Ví dụ: gom từ kệ A1" />
+                                    </td>
+                                    i++;
+                                }
+                            }
+                            else
+                            {
+                                <td class="small pm-pre">@(b.Notes ?? "—")</td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.CanRecover && open.Count > 0)
+        {
+            <div class="mt-3">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-box-arrow-in-up" aria-hidden="true"></i> Ghi thu hồi</button>
+                <span class="form-text ms-2">Để trống hoặc 0 ở lô chưa gom.</span>
+            </div>
+        }
+    </form>
+</section>
+
+@if (Model.CanSeeBuyers)
+{
+    <section class="pm-card" aria-labelledby="r-buyers">
+        <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+            <h2 id="r-buyers" class="pm-h2 mb-0">Khách đã mua các lô này</h2>
+            @if (Model.BuyerCount > Model.Buyers.Count)
+            {
+                <span class="small text-muted-pm">@N(Model.Buyers.Count) lần gần nhất / @N(Model.BuyerCount)</span>
+            }
+        </div>
+        @if (Model.Buyers.Count == 0)
+        {
+            <p class="text-muted-pm mb-0">Chưa bán cho khách nào.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="pm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Thời điểm</th>
+                            <th scope="col">Hóa đơn</th>
+                            <th scope="col">Khách hàng</th>
+                            <th scope="col">Điện thoại</th>
+                            <th scope="col">Lô</th>
+                            <th scope="col" class="text-end">Số lượng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Buyers)
+                        {
+                            <tr>
+                                <td class="num text-nowrap small">@Format.When(s.When)</td>
+                                <td class="num">
+                                    @if (Model.CanOpenInvoices)
+                                    {
+                                        <a asp-area="Sales" asp-controller="Invoices" asp-action="Details" asp-route-id="@s.InvoiceId">@s.InvoiceCode</a>
+                                    }
+                                    else
+                                    {
+                                        @s.InvoiceCode
+                                    }
+                                </td>
+                                <td>@s.CustomerName</td>
+                                <td class="num">@(s.Phone ?? "—")</td>
+                                <td class="num">@s.BatchNumber</td>
+                                <td class="text-end num text-nowrap">@StockText.Quantity(s.Quantity, Model.BaseUnit)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+}
+
+@if (Model.CanRecover && Model.AllDone)
+{
+    <div class="modal fade" id="complete-modal" tabindex="-1" aria-labelledby="complete-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Complete" asp-route-id="@Model.RecallId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="complete-title">Hoàn tất phiếu @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Phiếu chuyển sang Hoàn tất. Các lô vẫn giữ trạng thái thu hồi, không bán lại được.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chưa hoàn tất</button>
+                    <button type="submit" class="btn btn-primary">Hoàn tất</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

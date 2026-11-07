@@ -1,0 +1,20 @@
+﻿@model SupplierReturnFormViewModel
+@{
+    ViewData["Title"] = "Sửa phiếu trả " + Model.Code;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Trả nhà cung cấp</a> / <a asp-action="Details" asp-route-id="@Model.SupplierReturnId">@Model.Code</a> / Sửa</p>
+        <h1 class="pm-title">Sửa phiếu trả nhà cung cấp</h1>
+        <p class="pm-subtitle">@Model.Code · nháp, chưa trừ tồn kho.</p>
+    </div>
+</div>
+
+<partial name="_ReturnForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/catalog.js" asp-append-version="true"></script>
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+    <script src="~/js/supplier-return.js" asp-append-version="true"></script>
+}

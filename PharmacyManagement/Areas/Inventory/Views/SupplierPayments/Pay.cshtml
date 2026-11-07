@@ -1,0 +1,64 @@
+﻿@model PayReceiptViewModel
+@{
+    ViewData["Title"] = "Thanh toán phiếu nhập " + Model.ReceiptCode;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var amount = Model.Form.Amount ?? Math.Ceiling(Model.Remaining);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Công nợ nhà cung cấp</a> / <a asp-action="Supplier" asp-route-id="@Model.SupplierId">@Model.SupplierName</a> / Thanh toán</p>
+        <h1 class="pm-title">Thanh toán phiếu nhập @Model.ReceiptCode</h1>
+        <p class="pm-subtitle">Ngày nhập @Model.ReceiptDate.ToString("dd/MM/yyyy", vi)@(Model.InvoiceNumber is null ? "" : " · hóa đơn " + Model.InvoiceNumber)</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <form asp-action="Pay" asp-route-receiptId="@Model.GoodsReceiptId" method="post" class="pm-card" novalidate>
+            <div asp-validation-summary="ModelOnly" class="pm-alert bad mb-3"></div>
+            <div class="row g-3">
+                <div class="col-sm-6">
+                    <label asp-for="Form.Amount" class="form-label">Số tiền <span class="req">*</span></label>
+                    <div class="input-group">
+                        <input asp-for="Form.Amount" type="text" value="@Format.MoneyInput(amount)" class="form-control text-end num" inputmode="numeric" autocomplete="off" data-pm-money />
+                        <span class="input-group-text">đ</span>
+                    </div>
+                    <span asp-validation-for="Form.Amount" class="text-danger small"></span>
+                    <div class="form-text">Tối đa số còn nợ. Có thể trả nhiều lần.</div>
+                </div>
+                <fieldset class="col-sm-6">
+                    <legend class="form-label">Hình thức <span class="req">*</span></legend>
+                    <div class="pm-seg">
+                        <label><input type="radio" name="Form.Method" value="2" checked="@(Model.Form.Method != 1)" /> Chuyển khoản</label>
+                        <label><input type="radio" name="Form.Method" value="1" checked="@(Model.Form.Method == 1)" /> Tiền mặt</label>
+                    </div>
+                </fieldset>
+                <div class="col-sm-6">
+                    <label asp-for="Form.Reference" class="form-label">Mã giao dịch <span class="opt">(bắt buộc khi chuyển khoản)</span></label>
+                    <input asp-for="Form.Reference" class="form-control" maxlength="100" autocomplete="off" placeholder="FT26110712345" />
+                    <span asp-validation-for="Form.Reference" class="text-danger small"></span>
+                </div>
+                <div class="col-sm-6">
+                    <label asp-for="Form.Notes" class="form-label">Ghi chú <span class="opt">(không bắt buộc)</span></label>
+                    <input asp-for="Form.Notes" class="form-control" maxlength="500" autocomplete="off" />
+                    <span asp-validation-for="Form.Notes" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-cash" aria-hidden="true"></i> Lập phiếu chi</button>
+                <a class="btn btn-outline-secondary" asp-action="Supplier" asp-route-id="@Model.SupplierId">Quay lại</a>
+            </div>
+        </form>
+    </div>
+    <div class="col-lg-4">
+        <section class="pm-card" aria-labelledby="pay-sum">
+            <h2 id="pay-sum" class="pm-h2 mb-3">Phiếu nhập</h2>
+            <dl class="pm-dl">
+                <dt>Tổng tiền</dt><dd class="num">@Format.Money(Model.Total)</dd>
+                <dt>Đã thanh toán</dt><dd class="num">@Format.Money(Model.Paid)</dd>
+                <dt>Còn nợ</dt><dd class="num fw-semibold">@Format.Money(Model.Remaining)</dd>
+            </dl>
+        </section>
+    </div>
+</div>

@@ -1,0 +1,90 @@
+﻿@model StocktakeScopeViewModel
+@{
+    ViewData["Title"] = "Kiểm kê mới";
+    var s = Model.Scope;
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Kiểm kê</a> / Kiểm kê mới</p>
+        <h1 class="pm-title">Kiểm kê mới</h1>
+        <p class="pm-subtitle">Chọn phạm vi, in phiếu để đếm, rồi nhập số lượng đếm được.</p>
+    </div>
+</div>
+
+<form method="get" asp-action="Create" class="pm-card mb-4" aria-labelledby="scope-title">
+    <h2 id="scope-title" class="pm-h2 mb-3">1. Chọn phạm vi kiểm kê</h2>
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="scope" class="form-label">Kiểm kê theo <span class="req">*</span></label>
+            <select id="scope" name="Scope" class="form-select">
+                <!option value="" selected="@(s.Scope is null)">— Chọn —</!option>
+                <!option value="location" selected="@(s.Scope == "location")">Một tủ hoặc một kệ</!option>
+                <!option value="category" selected="@(s.Scope == "category")">Một nhóm thuốc</!option>
+                <!option value="all" selected="@(s.Scope == "all")">Toàn kho</!option>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="location" class="form-label">Tủ, kệ <span class="opt">(khi kiểm theo tủ, kệ)</span></label>
+            <select id="location" name="LocationId" class="form-select">
+                <option value="">— Chọn tủ, kệ —</option>
+                @foreach (var l in Model.Locations)
+                {
+                    <!option value="@l.Id" selected="@(s.LocationId == l.Id)">@l.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="category" class="form-label">Nhóm thuốc <span class="opt">(khi kiểm theo nhóm)</span></label>
+            <select id="category" name="CategoryId" class="form-select">
+                <option value="">— Chọn nhóm thuốc —</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <!option value="@c.Id" selected="@(s.CategoryId == c.Id)">@c.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-outline-secondary">Xem phạm vi</button>
+            <span class="form-text ms-2">Chọn tủ thì gồm mọi kệ trong tủ. Chỉ các lô còn tồn được đưa vào phiếu.</span>
+        </div>
+    </div>
+</form>
+
+@if (Model.ScopeError is not null)
+{
+    <div class="pm-alert warn mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> @Model.ScopeError</div>
+}
+else if (Model.ScopeLabel is not null)
+{
+    <section class="pm-card" aria-labelledby="next-title">
+        <h2 id="next-title" class="pm-h2 mb-2">2. Kiểm kê @Model.ScopeLabel</h2>
+        @if (Model.LotCount == 0)
+        {
+            <p class="mb-0">Phạm vi này không có lô nào còn tồn để kiểm kê.</p>
+        }
+        else
+        {
+            <p>Có <strong class="num">@N(Model.LotCount)</strong> lô còn tồn. Phiếu in để đếm không ghi số tồn trên hệ thống.</p>
+            <div class="d-flex flex-wrap gap-2">
+                @if (Model.CanPrint)
+                {
+                    <a class="btn btn-outline-secondary" asp-action="CountSheet" asp-route-scope="@s.Scope" asp-route-locationId="@s.LocationId" asp-route-categoryId="@s.CategoryId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In phiếu kiểm kê</a>
+                }
+                @if (Model.CanStart)
+                {
+                    <form asp-action="Start" method="post" class="d-inline">
+                        <input type="hidden" name="Scope" value="@s.Scope" />
+                        <input type="hidden" name="LocationId" value="@s.LocationId" />
+                        <input type="hidden" name="CategoryId" value="@s.CategoryId" />
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-pencil-square" aria-hidden="true"></i> Bắt đầu nhập số thực tế</button>
+                    </form>
+                }
+            </div>
+            @if (Model.CanStart)
+            {
+                <p class="form-text mb-0 mt-3">Bắt đầu nhập thì hệ thống ghi lại tồn của từng lô lúc này; các lô trong phiếu không đưa vào phiếu kiểm kê khác cho tới khi điều chỉnh xong.</p>
+            }
+        }
+    </section>
+}

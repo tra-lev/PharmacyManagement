@@ -22,12 +22,17 @@ public sealed class SidebarViewComponent : ViewComponent
     private readonly IPermissionService _permissions;
     private readonly IReturnService _returns;
     private readonly IStockService _stock;
+    private readonly IStocktakeService _stocktakes;
+    private readonly IRecallService _recalls;
 
-    public SidebarViewComponent(IPermissionService permissions, IReturnService returns, IStockService stock)
+    public SidebarViewComponent(IPermissionService permissions, IReturnService returns, IStockService stock,
+        IStocktakeService stocktakes, IRecallService recalls)
     {
         _permissions = permissions;
         _returns = returns;
         _stock = stock;
+        _stocktakes = stocktakes;
+        _recalls = recalls;
     }
 
     public async Task<IViewComponentResult> InvokeAsync(string? activeKey)
@@ -46,6 +51,17 @@ public sealed class SidebarViewComponent : ViewComponent
         var stockAlerts = stockItem is not null && stockItem.AnyOf.Any(codes.Contains)
             ? (await _stock.GetAlertCountsAsync()).ActionCount
             : 0;
+        // Kiểm kê: phiếu chờ duyệt (người duyệt) + phiếu đã duyệt chờ điều chỉnh tồn (người điều chỉnh)
+        var canApprove = codes.Contains(PermissionCodes.F2_4_3_Approve);
+        var canAdjust = codes.Contains(PermissionCodes.F2_4_3);
+        var stocktakeWork = 0;
+        if (canApprove || canAdjust)
+        {
+            var (pending, approved) = await _stocktakes.WorkCountsAsync();
+            stocktakeWork = (canApprove ? pending : 0) + (canAdjust ? approved : 0);
+        }
+        // Thu hồi: phiếu chưa hoàn tất, cho người lập phiếu thu hồi
+        var openRecalls = codes.Contains(PermissionCodes.F2_3_3_3) ? await _recalls.OpenCountAsync() : 0;
 
         var groups = new List<SidebarGroupViewModel>();
         foreach (var group in NavigationMenu.Groups)
@@ -56,8 +72,14 @@ public sealed class SidebarViewComponent : ViewComponent
                 .Where(i => i.AnyOf.Count == 0 || i.AnyOf.Any(codes.Contains))
                 .Select(i => new SidebarItemViewModel(i, i.Key == activeKey,
                     !emailVerified && i.AnyOf.Count > 0 && i.AnyOf.All(PermissionCodes.RequiresVerifiedEmail),
-                    i.Key switch { "returns" => returnRequests, "stock" => stockAlerts, _ => 0 },
-                    i.Key == "stock" ? "Thuốc dưới mức tối thiểu, lô cận hạn và lô hết hạn" : null))
+                    i.Key switch { "returns" => returnRequests, "stock" => stockAlerts, "stocktake" => stocktakeWork, "recall" => openRecalls, _ => 0 },
+                    i.Key switch
+                    {
+                        "stock" => "Thuốc dưới mức tối thiểu, lô cận hạn và lô hết hạn",
+                        "stocktake" => "Phiếu kiểm kê chờ duyệt hoặc chờ điều chỉnh tồn",
+                        "recall" => "Phiếu thu hồi chưa hoàn tất",
+                        _ => null
+                    }))
                 .ToList();
             if (items.Count == 0) continue;
             var open = group.Key == primaryGroup || items.Any(i => i.Active);

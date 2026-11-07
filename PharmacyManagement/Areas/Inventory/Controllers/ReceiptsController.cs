@@ -18,12 +18,14 @@ public class ReceiptsController : Controller
     private const string Nav = "gr";
 
     private readonly IGoodsReceiptService _receipts;
+    private readonly ISupplierPaymentService _payments;
     private readonly IAuthorizationService _authorization;
     private readonly UserManager<IdentityUser> _users;
 
-    public ReceiptsController(IGoodsReceiptService receipts, IAuthorizationService authorization, UserManager<IdentityUser> users)
+    public ReceiptsController(IGoodsReceiptService receipts, ISupplierPaymentService payments, IAuthorizationService authorization, UserManager<IdentityUser> users)
     {
         _receipts = receipts;
+        _payments = payments;
         _authorization = authorization;
         _users = users;
     }
@@ -48,6 +50,14 @@ public class ReceiptsController : Controller
         var inspecting = model.Status == (byte)GoodsReceiptStatus.Inspecting;
         model.CanEdit = inspecting && await HasAsync(PermissionCodes.F2_2_2);
         model.CanPost = inspecting && await CanPostAsync();
+        if (model.Status == (byte)GoodsReceiptStatus.Posted)
+        {
+            var (paid, remaining) = await _payments.ReceiptBalanceAsync(id);
+            model.PaidAmount = paid;
+            model.CanPay = remaining > 0 && await HasAsync(PermissionCodes.F2_2_5);
+            model.CanReturnToSupplier = await HasAsync(PermissionCodes.F2_3_1);
+            model.CanOpenPayments = await HasAsync(PermissionCodes.F2_2_5) || await HasAsync(PermissionCodes.F2_3_5);
+        }
         return View(model);
     }
 
