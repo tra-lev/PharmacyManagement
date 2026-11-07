@@ -1,0 +1,80 @@
+﻿@model AuditLogDetailsViewModel
+@{
+    ViewData["Title"] = AuditText.Action(Model.ActionType);
+    var both = Model.HasBefore && Model.HasAfter;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Nhật ký hoạt động</a> / Chi tiết</p>
+        <h1 class="pm-title">@AuditText.Action(Model.ActionType)</h1>
+        <p class="pm-subtitle num">@Format.When(Model.CreatedAt)</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="a-head">
+            <h2 id="a-head" class="pm-h2 mb-3">Thông tin</h2>
+            <dl class="pm-dl mb-0">
+                <dt>Người thực hiện</dt><dd>@Model.Actor</dd>
+                <dt>Đối tượng</dt><dd>@AuditText.Entity(Model.EntityName) <span class="num">@Model.EntityId</span></dd>
+                @if (AuditText.GroupOf(Model.ActionType) is null)
+                {
+                    <dt>Ghi nhận là</dt><dd class="num small">@Model.ActionType</dd>
+                }
+                <dt>Địa chỉ IP</dt><dd class="num">@(Model.IpAddress ?? "—")</dd>
+                <dt>Trình duyệt</dt><dd class="small text-break">@(Model.UserAgent ?? "—")</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="a-data">
+            <h2 id="a-data" class="pm-h2 mb-3">Dữ liệu</h2>
+            @if (Model.Changes.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Thao tác này không ghi dữ liệu chi tiết.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="pm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Trường</th>
+                                @if (Model.HasBefore)
+                                {
+                                    <th scope="col">Trước</th>
+                                }
+                                @if (Model.HasAfter)
+                                {
+                                    <th scope="col">Sau</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var c in Model.Changes)
+                            {
+                                <tr>
+                                    <td class="small fw-semibold">@c.Field</td>
+                                    @if (Model.HasBefore)
+                                    {
+                                        <td class="small text-break pm-pre">@(c.Before ?? "—")</td>
+                                    }
+                                    @if (Model.HasAfter)
+                                    {
+                                        <td class="small text-break pm-pre @(both && c.Changed ? "fw-semibold" : "")">@(c.After ?? "—")</td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (both)
+                {
+                    <p class="form-text mb-0 mt-2">Giá trị in đậm là giá trị đã thay đổi.</p>
+                }
+            }
+        </section>
+    </div>
+</div>

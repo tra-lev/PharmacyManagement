@@ -107,6 +107,9 @@ builder.Services.AddScoped<IStocktakeService, StocktakeService>();
 builder.Services.AddScoped<ISupplierPaymentService, SupplierPaymentService>();
 builder.Services.AddScoped<ISupplierReturnService, SupplierReturnService>();
 builder.Services.AddScoped<IRecallService, RecallService>();
+builder.Services.AddScoped<IRevenueReportService, RevenueReportService>();
+builder.Services.AddScoped<IRoleAdminService, RoleAdminService>();
+builder.Services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddControllersWithViews(o =>

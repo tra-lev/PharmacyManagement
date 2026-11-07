@@ -1,0 +1,6 @@
+hoàn trả + kiểm kê + thu hồi
+- giúp mình kiểm kê hang nhập, kiểm tra đối chiếu hang trong kho với trên web rồi lập phiếu chênh lệch cho owner duyệt
+- hoàn tiền, quyết toán
+- thu công nợ ncc -> vẫn còn lỗi của mã qr ko hiện
+- thu hồi lô thì sẽ hiện danh sách khách đã mua thuốc để sau này khách đến hoàn trả thì hoàn tiền
+- thu hồi xong thì ko còn ở kho thuốc bán lẻ

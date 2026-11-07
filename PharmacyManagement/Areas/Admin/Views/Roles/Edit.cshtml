@@ -1,0 +1,78 @@
+﻿@model RolePermissionsViewModel
+@{
+    ViewData["Title"] = "Quyền của " + Model.DisplayName;
+    var edit = Model.CanEdit;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Phân quyền</a> / @Model.DisplayName</p>
+        <h1 class="pm-title">Quyền của vai trò @Model.DisplayName</h1>
+        <p class="pm-subtitle">@Model.Description · @Model.Accounts tài khoản</p>
+    </div>
+</div>
+
+@if (!Model.Editable)
+{
+    <div class="pm-alert calm mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> Chủ nhà thuốc luôn có toàn quyền. Không sửa để tránh tự khóa mình khỏi hệ thống.</div>
+}
+
+<form asp-action="Edit" asp-route-id="@Model.Role" method="post" data-pm-roles>
+    @foreach (var g in Model.Groups)
+    {
+        var enabled = g.Items.Where(i => i.LockedReason is null).ToList();
+        <section class="pm-card mb-4" aria-labelledby="g-@g.Key" data-pm-role-group>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                <h2 id="g-@g.Key" class="pm-h2 mb-0">@g.Title</h2>
+                @if (edit && enabled.Count > 1)
+                {
+                    <label class="small d-flex align-items-center gap-2 mb-0">
+                        <input type="checkbox" class="form-check-input mt-0" data-pm-role-all /> Chọn cả nhóm
+                    </label>
+                }
+            </div>
+            <div class="row g-2">
+                @foreach (var p in g.Items)
+                {
+                    var id = "perm-" + p.PermissionId;
+                    <div class="col-md-6 col-xl-4">
+                        <div class="pm-inner h-100 d-flex gap-2 align-items-start">
+                            <input type="checkbox" class="form-check-input mt-1 flex-shrink-0" id="@id" name="granted" value="@p.PermissionId"
+                                   checked="@p.Granted" disabled="@(!edit || p.LockedReason is not null)" data-pm-role-item />
+                            <label for="@id" class="mb-0">
+                                <span class="d-block">@p.Name</span>
+                                <span class="small text-muted-pm">
+                                    @(p.IsAction ? "Thao tác" : "Chỉ xem")
+                                    @if (p.IsSensitive)
+                                    {
+                                        <span class="pm-badge warn ms-1">Nhạy cảm</span>
+                                    }
+                                </span>
+                                @if (p.LockedReason is not null)
+                                {
+                                    <span class="d-block small text-muted-pm"><i class="bi bi-lock" aria-hidden="true"></i> @p.LockedReason</span>
+                                }
+                            </label>
+                        </div>
+                    </div>
+                }
+            </div>
+        </section>
+    }
+
+    @if (edit)
+    {
+        <div class="pm-card d-flex flex-wrap align-items-center gap-3">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-shield-check" aria-hidden="true"></i> Lưu phân quyền</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a>
+            <span class="small text-muted-pm" aria-live="polite">Đang chọn <span class="num fw-semibold" data-pm-role-count>@Model.GrantedCount</span> / @Model.TotalCount quyền. Quyền nhạy cảm cần người dùng đã xác minh email.</span>
+        </div>
+    }
+</form>
+
+@section Scripts {
+    @if (edit)
+    {
+        <script src="~/js/roles.js" asp-append-version="true"></script>
+    }
+}

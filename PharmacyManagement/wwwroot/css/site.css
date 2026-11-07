@@ -284,3 +284,16 @@ a:hover { color: var(--pm-ink); }
 @media (prefers-reduced-motion: reduce) { .pm-stat-link { transition: none; } }
 /* Thiết lập định mức tồn (DEC-42): ô nhập trong bảng không bị co quá hẹp */
 .pm-cell-input { min-width: 180px; }
+
+/* Biểu đồ báo cáo doanh thu (SVG tự vẽ, DEC-46) */
+.pm-chart svg { display: block; width: 100%; height: auto; }
+.pm-chart-axis text, .pm-chart-x { fill: var(--pm-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.pm-chart-grid { stroke: var(--pm-line-soft); stroke-width: 1; }
+.pm-chart-zero { stroke: var(--pm-line); stroke-width: 1; }
+.pm-bar-rev { fill: var(--pm-primary); }
+.pm-bar-profit { fill: var(--pm-good); }
+.pm-bar-loss { fill: var(--pm-bad); }
+.pm-chart-legend { display: flex; flex-wrap: wrap; gap: 16px; color: var(--pm-muted); }
+.pm-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: baseline; }
+.pm-key.rev { background: var(--pm-primary); }
+.pm-key.profit { background: var(--pm-good); }
