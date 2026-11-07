@@ -14,11 +14,35 @@
         <p class="pm-subtitle"><a asp-action="Medicine" asp-route-id="@Model.MedicineId">@Model.MedicineName</a> · <span class="num">@Model.MedicineCode</span></p>
         <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
             <span class="pm-badge @StockText.Tone(Model.Condition)">@StockText.Condition(Model.Condition, Model.Status)</span>
+            @if (Model.RecallId is not null)
+            {
+                if (Model.Links.Recalls)
+                {
+                    <a class="small num" asp-controller="Recalls" asp-action="Details" asp-route-id="@Model.RecallId">Phiếu thu hồi @Model.RecallCode</a>
+                }
+                else
+                {
+                    <span class="small text-muted-pm num">Phiếu thu hồi @Model.RecallCode</span>
+                }
+            }
         </div>
     </div>
-    @if (Model.CanDispose)
+    @if (Model.CanDispose || Model.CanReturn || Model.CanRecall)
     {
-        <a class="btn btn-outline-secondary" asp-controller="Disposals" asp-action="Create" asp-route-batchId="@Model.BatchId"><i class="bi bi-trash3" aria-hidden="true"></i> Hủy lô này</a>
+        <div class="d-flex flex-wrap gap-2">
+            @if (Model.CanReturn)
+            {
+                <a class="btn btn-outline-secondary" asp-controller="SupplierReturns" asp-action="Create" asp-route-batchId="@Model.BatchId"><i class="bi bi-box-arrow-right" aria-hidden="true"></i> Trả nhà cung cấp</a>
+            }
+            @if (Model.CanRecall)
+            {
+                <a class="btn btn-outline-secondary" asp-controller="Recalls" asp-action="Create" asp-route-batchId="@Model.BatchId"><i class="bi bi-lock" aria-hidden="true"></i> Thu hồi lô này</a>
+            }
+            @if (Model.CanDispose)
+            {
+                <a class="btn btn-outline-secondary" asp-controller="Disposals" asp-action="Create" asp-route-batchId="@Model.BatchId"><i class="bi bi-trash3" aria-hidden="true"></i> Hủy lô này</a>
+            }
+        </div>
     }
 </div>
 

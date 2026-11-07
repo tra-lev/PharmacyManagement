@@ -424,6 +424,12 @@ public sealed class StockService : IStockService
         var latest = entries.AsEnumerable().Reverse().Take(StockBatchViewModel.LedgerLimit).ToList();
         var ledger = await ToLedgerRowsAsync(latest, balances, ct);
 
+        var recall = await _db.RecallBatches.AsNoTracking()
+            .Where(r => r.BatchId == batchId)
+            .OrderByDescending(r => r.RecallId)
+            .Select(r => new { r.RecallId, r.Recall.RecallCode })
+            .FirstOrDefaultAsync(ct);
+
         var sales = new List<BatchSaleRow>();
         var salesCount = 0;
         var soldQuantity = 0m;
@@ -464,6 +470,8 @@ public sealed class StockService : IStockService
             Status = b.Status,
             Condition = Classify(b.QuantityOnHand, b.Status, b.ExpiryDate, warningDays, today),
             Notes = b.Notes,
+            RecallId = recall?.RecallId,
+            RecallCode = recall?.RecallCode,
             Quantity = b.QuantityOnHand,
             Breakdown = StockText.Breakdown(b.QuantityOnHand, b.BaseUnit, largest),
             WarningDays = warningDays,

@@ -7,6 +7,9 @@
         (byte)InventoryTransactionType.SaleIssue when links.Invoices => Url.Action("Details", "Invoices", new { area = "Sales", id = r.DocumentId }),
         (byte)InventoryTransactionType.CustomerReturnRestock when links.Returns => Url.Action("Details", "Returns", new { area = "Sales", id = r.DocumentId }),
         (byte)InventoryTransactionType.Disposal when links.Disposals => Url.Action("Details", "Disposals", new { area = "Inventory", id = r.DocumentId }),
+        (byte)InventoryTransactionType.SupplierReturn when links.SupplierReturns => Url.Action("Details", "SupplierReturns", new { area = "Inventory", id = r.DocumentId }),
+        (byte)InventoryTransactionType.Recall when links.Recalls => Url.Action("Details", "Recalls", new { area = "Inventory", id = r.DocumentId }),
+        (byte)InventoryTransactionType.StocktakeAdjustment when links.Stocktakes => Url.Action("Details", "Stocktakes", new { area = "Inventory", id = r.DocumentId }),
         _ => null
     };
     string Signed(decimal value) => (value > 0 ? "+" : value < 0 ? "−" : "") + Format.Number(Math.Abs(value));

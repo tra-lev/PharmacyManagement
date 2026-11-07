@@ -1,0 +1,204 @@
+﻿@model StocktakeDetailsViewModel
+@{
+    ViewData["Title"] = "Phiếu kiểm kê " + Model.Code;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string Or(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    string Signed(decimal value) => value == 0 ? "Khớp" : (value > 0 ? "+" : "−") + Format.Number(Math.Abs(value));
+    var counting = Model.IsCounting;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Kiểm kê</a> / @Model.Code</p>
+        <h1 class="pm-title">Phiếu kiểm kê @Model.Code</h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @StocktakeStatusText.Tone(Model.Status)">@StocktakeStatusText.Of(Model.Status)</span>
+            <span class="pm-badge mute">Kiểm kê @Model.Scope</span>
+        </div>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (Model.CanCount)
+        {
+            <a class="btn btn-primary" asp-action="Count" asp-route-id="@Model.StocktakeId"><i class="bi bi-pencil-square" aria-hidden="true"></i> Nhập số thực tế</a>
+        }
+        @if (Model.CanApprove)
+        {
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#approve-modal"><i class="bi bi-check2-circle" aria-hidden="true"></i> Duyệt</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#reject-modal">Từ chối</button>
+        }
+        @if (Model.CanAdjust)
+        {
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#adjust-modal"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Điều chỉnh tồn</button>
+        }
+        @if (counting)
+        {
+            <a class="btn btn-outline-secondary" asp-action="CountSheet" asp-route-id="@Model.StocktakeId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In phiếu kiểm kê</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-secondary" asp-action="Print" asp-route-id="@Model.StocktakeId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In biên bản</a>
+        }
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <section class="pm-card h-100" aria-labelledby="d-head">
+            <h2 id="d-head" class="pm-h2 mb-3">Thông tin phiếu</h2>
+            <dl class="pm-dl">
+                <dt>Kho</dt><dd>@Model.WarehouseName</dd>
+                <dt>Phạm vi</dt><dd>@Model.Scope</dd>
+                <dt>Ngày lập</dt><dd class="num">@Format.When(Model.StocktakeDate)</dd>
+                <dt>Người lập</dt><dd>@Model.CreatedByName</dd>
+                @if (Model.ApprovedByName is not null)
+                {
+                    <dt>@(Model.Status == (byte)StocktakeStatus.Rejected ? "Người từ chối" : "Người duyệt")</dt>
+                    <dd>@Model.ApprovedByName <span class="text-muted-pm num">· @Format.When(Model.ApprovedAt!.Value)</span></dd>
+                    <dt>Ý kiến</dt><dd class="pm-pre">@Or(Model.ApprovalNote)</dd>
+                }
+                @if (Model.AdjustedByName is not null)
+                {
+                    <dt>Người điều chỉnh</dt><dd>@Model.AdjustedByName <span class="text-muted-pm num">· @Format.When(Model.AdjustedAt!.Value)</span></dd>
+                }
+                <dt>Ghi chú</dt><dd class="pm-pre">@Or(Model.Notes)</dd>
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="pm-card h-100" aria-labelledby="d-sum">
+            <h2 id="d-sum" class="pm-h2 mb-3">Kết quả</h2>
+            @if (counting)
+            {
+                <div class="pm-stat" data-tone="calm">
+                    <span class="l">Đang kiểm đếm</span>
+                    <span class="v">@Model.Lines.Count lô</span>
+                    <span class="s">Nhập đủ số đếm được của mọi lô rồi nộp biên bản.</span>
+                </div>
+            }
+            else
+            {
+                <div class="pm-stat" data-tone="@(Model.DifferenceCount == 0 ? "good" : "warn")">
+                    <span class="l">Lô chênh lệch</span>
+                    <span class="v">@Model.DifferenceCount / @Model.Lines.Count</span>
+                    <span class="s">Thiếu @Format.Money(-Model.ShortageValue) · thừa @Format.Money(Model.SurplusValue) (theo giá vốn)</span>
+                </div>
+                @if (Model.Status == (byte)StocktakeStatus.Rejected)
+                {
+                    <p class="form-text mb-0 mt-3">Biên bản bị từ chối, tồn kho không đổi. Lập phiếu kiểm kê mới để kiểm lại.</p>
+                }
+            }
+        </section>
+    </div>
+</div>
+
+<section class="pm-card" aria-labelledby="d-lines">
+    <h2 id="d-lines" class="pm-h2 mb-3">Các lô kiểm kê</h2>
+    <div class="table-responsive">
+        <table class="pm-table">
+            <thead>
+                <tr>
+                    <th scope="col">Thuốc, lô</th>
+                    <th scope="col">Vị trí</th>
+                    @if (!counting)
+                    {
+                        <th scope="col" class="text-end">Tồn lúc tạo phiếu</th>
+                        <th scope="col" class="text-end">Thực tế</th>
+                        <th scope="col" class="text-end">Chênh lệch</th>
+                        <th scope="col">Lý do</th>
+                    }
+                    else
+                    {
+                        <th scope="col">Hạn dùng</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.Lines)
+                {
+                    <tr>
+                        <td>
+                            <span class="fw-semibold">@l.MedicineName</span>
+                            <div class="small text-muted-pm num"><a asp-controller="Stock" asp-action="Batch" asp-route-id="@l.BatchId">Lô @l.BatchNumber</a> · @l.MedicineCode</div>
+                        </td>
+                        <td class="small">@(l.Location ?? "Chưa xếp kệ")</td>
+                        @if (!counting)
+                        {
+                            <td class="text-end num text-nowrap">@StockText.Quantity(l.SystemQuantity, l.BaseUnit)</td>
+                            <td class="text-end num text-nowrap">@Format.Number(l.ActualQuantity)</td>
+                            <td class="text-end num text-nowrap @(l.Difference < 0 ? "text-danger fw-semibold" : l.Difference > 0 ? "fw-semibold" : "text-muted-pm")">@Signed(l.Difference)</td>
+                            <td class="small">@Or(l.Reason)</td>
+                        }
+                        else
+                        {
+                            <td class="small num">@l.ExpiryDate.ToString("dd/MM/yyyy", vi)</td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@if (Model.CanApprove)
+{
+    <div class="modal fade" id="approve-modal" tabindex="-1" aria-labelledby="approve-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Approve" asp-route-id="@Model.StocktakeId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="approve-title">Duyệt biên bản @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>@Model.DifferenceCount lô chênh lệch. Duyệt xong, quản lý kho điều chỉnh tồn theo biên bản.</p>
+                    <label for="approve-note" class="form-label">Ý kiến <span class="opt">(không bắt buộc)</span></label>
+                    <input type="text" id="approve-note" name="note" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: đồng ý điều chỉnh theo biên bản" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chưa duyệt</button>
+                    <button type="submit" class="btn btn-primary">Duyệt</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="reject-modal" tabindex="-1" aria-labelledby="reject-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Reject" asp-route-id="@Model.StocktakeId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="reject-title">Từ chối biên bản @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Tồn kho giữ nguyên; cần lập phiếu kiểm kê mới để kiểm lại.</p>
+                    <label for="reject-note" class="form-label">Lý do từ chối <span class="req">*</span></label>
+                    <input type="text" id="reject-note" name="note" class="form-control" maxlength="500" required autocomplete="off" placeholder="Ví dụ: chênh lệch lớn bất thường, đếm lại kệ vitamin" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Quay lại</button>
+                    <button type="submit" class="btn btn-danger">Từ chối</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@if (Model.CanAdjust)
+{
+    <div class="modal fade" id="adjust-modal" tabindex="-1" aria-labelledby="adjust-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Adjust" asp-route-id="@Model.StocktakeId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="adjust-title">Điều chỉnh tồn theo biên bản @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Tồn kho của @Model.DifferenceCount lô được cộng / trừ đúng phần chênh lệch đã duyệt. Đã điều chỉnh thì không hoàn lại được.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chưa điều chỉnh</button>
+                    <button type="submit" class="btn btn-primary">Điều chỉnh tồn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

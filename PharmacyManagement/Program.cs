@@ -103,6 +103,10 @@ builder.Services.AddScoped<IStockService, StockService>();
 builder.Services.AddScoped<IStockDisposalService, StockDisposalService>();
 builder.Services.AddScoped<ILocationService, LocationService>();
 builder.Services.AddScoped<IInventoryPolicyService, InventoryPolicyService>();
+builder.Services.AddScoped<IStocktakeService, StocktakeService>();
+builder.Services.AddScoped<ISupplierPaymentService, SupplierPaymentService>();
+builder.Services.AddScoped<ISupplierReturnService, SupplierReturnService>();
+builder.Services.AddScoped<IRecallService, RecallService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddControllersWithViews(o =>

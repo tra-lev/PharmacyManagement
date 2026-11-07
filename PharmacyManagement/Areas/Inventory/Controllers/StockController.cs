@@ -90,6 +90,9 @@ public class StockController : Controller
         model.CanSeeSales = canSeeSales;
         model.CanMove = model.Movable && await HasAsync(PermissionCodes.F2_2_4);
         model.CanDispose = model.Quantity > 0 && model.Status != (byte)BatchStatus.Recalled && await HasAsync(PermissionCodes.F2_3_2);
+        model.CanReturn = model.Quantity > 0 && model.Status != (byte)BatchStatus.Recalled && model.GoodsReceiptId is not null
+                          && await HasAsync(PermissionCodes.F2_3_1);
+        model.CanRecall = model.Status != (byte)BatchStatus.Recalled && await HasAsync(PermissionCodes.F2_3_3_1);
         model.Links = await LinksAsync();
         return View(model);
     }
@@ -119,7 +122,11 @@ public class StockController : Controller
         Returns: await HasAsync(PermissionCodes.F3_4_1) || await HasAsync(PermissionCodes.F3_4_4)
                  || (await HasAsync(PermissionCodes.F3_4_2) && await HasAsync(PermissionCodes.F3_4_3)),
         Catalog: await HasAsync(PermissionCodes.F1_1_1) || await HasAsync(PermissionCodes.F1_1_2),
-        Disposals: await HasAsync(PermissionCodes.F2_3_2));
+        Disposals: await HasAsync(PermissionCodes.F2_3_2),
+        SupplierReturns: await HasAsync(PermissionCodes.F2_3_1) || await HasAsync(PermissionCodes.F2_3_5),
+        Recalls: await HasAsync(PermissionCodes.F2_3_3_1) || await HasAsync(PermissionCodes.F2_3_3_2) || await HasAsync(PermissionCodes.F2_3_3_3),
+        Stocktakes: await HasAsync(PermissionCodes.F2_4_1_1) || await HasAsync(PermissionCodes.F2_4_1_2) || await HasAsync(PermissionCodes.F2_4_2)
+                    || await HasAsync(PermissionCodes.F2_4_3) || await HasAsync(PermissionCodes.F2_4_3_Approve));
 
     private async Task<bool> HasAsync(string code) => (await _authorization.AuthorizeAsync(User, code)).Succeeded;
 

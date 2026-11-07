@@ -1,0 +1,115 @@
+﻿@model RecallFormViewModel
+@{
+    ViewData["Title"] = "Tiếp nhận thông báo thu hồi";
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    var today = DateOnly.FromDateTime(DateTime.Now);
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Thu hồi thuốc</a> / Tiếp nhận thông báo</p>
+        <h1 class="pm-title">Tiếp nhận thông báo thu hồi</h1>
+        <p class="pm-subtitle">Chọn thuốc, đánh dấu các lô bị thu hồi. Lưu xong, các lô đó bị khóa và ngừng bán ngay.</p>
+    </div>
+</div>
+
+<form method="get" asp-action="Create" class="pm-card mb-4 row g-3 align-items-end" aria-label="Chọn thuốc bị thu hồi">
+    <div class="col-md-9">
+        <label for="pick-medicine" class="form-label">Thuốc bị thu hồi <span class="req">*</span></label>
+        <select id="pick-medicine" name="medicineId" class="form-select"
+                data-pm-combobox data-pm-combobox-placeholder="Gõ tên hoặc mã thuốc…" data-pm-combobox-empty="Không tìm thấy thuốc">
+            <option value="">— Chọn thuốc —</option>
+            @foreach (var m in Model.Medicines)
+            {
+                <!option value="@m.Id" selected="@(Model.MedicineId == m.Id)">@m.Name</!option>
+            }
+        </select>
+    </div>
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-outline-secondary w-100">@(Model.MedicineId is null ? "Xem các lô" : "Đổi thuốc")</button>
+    </div>
+</form>
+
+@if (Model.MedicineId is not null)
+{
+    <form asp-action="Create" method="post" class="pm-card" novalidate>
+        <div asp-validation-summary="ModelOnly" class="pm-alert bad mb-3"></div>
+        <input type="hidden" asp-for="MedicineId" />
+
+        <h2 class="pm-h2 mb-3">Thông báo thu hồi · @Model.MedicineName</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <label asp-for="NoticeNumber" class="form-label">Số công văn <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="NoticeNumber" class="form-control" maxlength="80" autocomplete="off" placeholder="Ví dụ: 1234/QLD-CL" />
+                <span asp-validation-for="NoticeNumber" class="text-danger small"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="NoticeDate" class="form-label">Ngày công văn <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="NoticeDate" type="date" class="form-control" max="@today.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)" />
+                <span asp-validation-for="NoticeDate" class="text-danger small"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Reason" class="form-label">Lý do thu hồi <span class="req">*</span></label>
+                <textarea asp-for="Reason" class="form-control" rows="2" maxlength="1000" placeholder="Ví dụ: lô thuốc không đạt chỉ tiêu độ hòa tan"></textarea>
+                <span asp-validation-for="Reason" class="text-danger small"></span>
+            </div>
+        </div>
+
+        <fieldset>
+            <legend class="pm-h2 mb-2">Lô bị thu hồi <span class="req">*</span></legend>
+            <span asp-validation-for="BatchIds" class="text-danger small d-block mb-2"></span>
+            @if (Model.Batches.Count == 0)
+            {
+                <p class="text-muted-pm mb-0">Thuốc này không còn lô nào chưa bị thu hồi.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="pm-table">
+                        <thead>
+                            <tr>
+                                <th scope="col"><span class="visually-hidden">Chọn</span></th>
+                                <th scope="col">Số lô</th>
+                                <th scope="col">Hạn dùng</th>
+                                <th scope="col">Nhà cung cấp</th>
+                                <th scope="col" class="text-end">Tồn hiện tại</th>
+                                <th scope="col" class="text-end">Đã bán</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.Batches)
+                            {
+                                var id = "lot-" + b.BatchId.ToString(CultureInfo.InvariantCulture);
+                                <tr>
+                                    <td><input type="checkbox" class="form-check-input" id="@id" name="BatchIds" value="@b.BatchId" checked="@(Model.BatchIds.Contains(b.BatchId))" /></td>
+                                    <td>
+                                        <label for="@id" class="fw-semibold num mb-0">@b.BatchNumber</label>
+                                        @if (b.Status != (byte)BatchStatus.Available)
+                                        {
+                                            <div class="small text-muted-pm">@(b.Status == (byte)BatchStatus.Locked ? "Bị khóa" : "Ngừng sử dụng")</div>
+                                        }
+                                    </td>
+                                    <td class="num">@b.ExpiryDate.ToString("dd/MM/yyyy", vi)</td>
+                                    <td class="small">@(b.SupplierName ?? "—")</td>
+                                    <td class="text-end num text-nowrap">@StockText.Quantity(b.QuantityOnHand, Model.BaseUnit ?? "")</td>
+                                    <td class="text-end num text-nowrap">@Format.Number(b.SoldQuantity)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <p class="form-text mt-2 mb-0">Tồn lúc thu hồi được ghi theo số tồn tại thời điểm lưu. Sau khi lưu không bỏ lô khỏi phiếu được.</p>
+            }
+        </fieldset>
+
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <button type="submit" class="btn btn-primary" disabled="@(Model.Batches.Count == 0)"><i class="bi bi-lock" aria-hidden="true"></i> Lưu và khóa lô</button>
+            <a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <partial name="_FormValidation" />
+    <script src="~/js/combobox.js" asp-append-version="true"></script>
+}

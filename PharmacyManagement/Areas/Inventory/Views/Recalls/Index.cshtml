@@ -1,0 +1,123 @@
+﻿@model RecallListViewModel
+@{
+    ViewData["Title"] = "Thu hồi thuốc";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.Status, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Kho</p>
+        <h1 class="pm-title">Thu hồi thuốc</h1>
+        <p class="pm-subtitle"><span data-pm-live="count" aria-live="polite">@if (f.IsFiltered)
+            {
+                <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) phiếu thu hồi</text>
+            }
+            else
+            {
+                <text>@N(Model.GrandTotal) phiếu thu hồi</text>
+            }</span> · tìm theo mã phiếu, số công văn, tên thuốc hoặc số lô.</p>
+    </div>
+    @if (Model.CanCreate)
+    {
+        <a class="btn btn-primary" asp-action="Create"><i class="bi bi-plus-lg" aria-hidden="true"></i> Tiếp nhận thông báo thu hồi</a>
+    }
+</div>
+
+<form method="get" asp-action="Index" class="pm-card pm-filter pm-filter-1 mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm phiếu thu hồi</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã phiếu, số công văn, thuốc, số lô…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi trạng thái</!option>
+            <!option value="open" selected="@(f.Status == "open")">Chưa hoàn tất</!option>
+            <!option value="received" selected="@(f.Status == "received")">Mới tiếp nhận</!option>
+            <!option value="progress" selected="@(f.Status == "progress")">Đang thu hồi</!option>
+            <!option value="done" selected="@(f.Status == "done")">Hoàn tất</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (f.IsFiltered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card pm-live-results" aria-label="Danh sách phiếu thu hồi" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+            @(f.Q is null ? "Chưa có phiếu thu hồi nào khớp bộ lọc." : $"Không tìm thấy phiếu thu hồi khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Phiếu thu hồi</th>
+                        <th scope="col">Thuốc, lô</th>
+                        <th scope="col">Công văn</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@r.RecallId">@r.Code</a>
+                                <div class="small text-muted-pm num">@Format.When(r.CreatedAt)</div>
+                            </td>
+                            <td>
+                                @r.MedicineName <span class="small text-muted-pm num">@r.MedicineCode</span>
+                                <div class="small text-muted-pm num">@N(r.BatchCount) lô: @r.BatchNumbers</div>
+                            </td>
+                            <td class="small num">
+                                @(r.NoticeNumber ?? "—")
+                                @if (r.NoticeDate is not null)
+                                {
+                                    <div class="text-muted-pm">@r.NoticeDate.Value.ToString("dd/MM/yyyy", vi)</div>
+                                }
+                            </td>
+                            <td><span class="pm-badge @RecallStatusText.Tone(r.Status)">@RecallStatusText.Of(r.Status)</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

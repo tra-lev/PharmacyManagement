@@ -1,0 +1,155 @@
+﻿@model SupplierReturnFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+    // Dữ liệu cho supplier-return.js: tồn, giá vốn, đơn vị cơ sở của từng lô
+    var batchData = Model.BatchOptions.ToDictionary(
+        b => b.BatchId.ToString(CultureInfo.InvariantCulture),
+        b => new { qty = b.Quantity, cost = b.UnitCost, unit = b.BaseUnit });
+
+    void LineFields(SupplierReturnLineForm l, string idx)
+    {
+        var p = "Lines[" + idx + "].";
+        <div class="pm-inner" data-pm-row data-pm-sret-line>
+            <input type="hidden" name="Lines.Index" value="@idx" />
+            <div class="row g-2">
+                <div class="col-lg-7">
+                    <label class="form-label" for="@(idx)-lot">Lô thuốc <span class="req">*</span></label>
+                    <select id="@(idx)-lot" name="@(p)BatchId" class="form-select" data-pm-lot
+                            data-pm-combobox data-pm-combobox-placeholder="Gõ tên thuốc, mã thuốc, số lô hoặc mã phiếu nhập…" data-pm-combobox-empty="Không tìm thấy lô">
+                        <!option value="">— Chọn lô —</!option>
+                        @foreach (var b in Model.BatchOptions)
+                        {
+                            <!option value="@b.BatchId" data-search="@b.Keywords" selected="@(b.BatchId == l.BatchId)">@b.Label</!option>
+                        }
+                    </select>
+                    <span class="small text-muted-pm d-block mt-1" data-pm-lot-info></span>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                    <label class="form-label" for="@(idx)-qty">Số lượng trả <span class="req">*</span></label>
+                    <input type="number" id="@(idx)-qty" name="@(p)Quantity" value="@Format.Input(l.Quantity)" class="form-control text-end" min="0" step="any" inputmode="decimal" data-pm-qty />
+                </div>
+                <div class="col-6 col-md-4 col-lg-3">
+                    <label class="form-label" for="@(idx)-cost">Đơn giá trả (đ / đơn vị cơ sở)</label>
+                    <input type="number" id="@(idx)-cost" name="@(p)UnitCost" value="@Format.Input(l.UnitCost)" class="form-control text-end" min="0" step="any" inputmode="decimal" placeholder="Giá vốn lô" data-pm-cost />
+                </div>
+                <div class="col-md-4 col-lg-3">
+                    <span class="form-label d-block">Thành tiền</span>
+                    <div class="form-control pm-readonly num justify-content-end" data-pm-line-total>—</div>
+                </div>
+                <div class="col">
+                    <label class="form-label" for="@(idx)-note">Ghi chú <span class="opt">(không bắt buộc)</span></label>
+                    <input type="text" id="@(idx)-note" name="@(p)Reason" value="@l.Reason" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: chai rò rỉ, nắp lỏng" />
+                </div>
+                <div class="col-auto d-flex align-items-end">
+                    <button type="button" class="pm-icon-btn" data-pm-remove aria-label="Bỏ dòng lô"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@if (!Model.IsEdit)
+{
+    <form method="get" asp-action="Create" class="pm-card mb-4 row g-3 align-items-end" aria-label="Chọn nhà cung cấp">
+        <div class="col-md-5">
+            <label for="pick-supplier" class="form-label">Nhà cung cấp <span class="req">*</span></label>
+            <select id="pick-supplier" name="supplierId" class="form-select">
+                <option value="">— Chọn nhà cung cấp —</option>
+                @foreach (var s in Model.Suppliers)
+                {
+                    <!option value="@s.Id" selected="@(Model.SupplierId == s.Id)">@s.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label for="pick-receipt" class="form-label">Phiếu nhập gốc <span class="opt">(không bắt buộc)</span></label>
+            <select id="pick-receipt" name="receiptId" class="form-select" disabled="@(Model.SupplierId is null)">
+                <option value="">Mọi phiếu nhập của nhà cung cấp</option>
+                @foreach (var r in Model.Receipts)
+                {
+                    <!option value="@r.Id" selected="@(Model.GoodsReceiptId == r.Id)">@r.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-outline-secondary w-100">@(Model.SupplierId is null ? "Chọn" : "Đổi lựa chọn")</button>
+        </div>
+        <div class="col-12 form-text mt-1">Chọn nhà cung cấp trước: chỉ trả được các lô nhập từ nhà cung cấp đó. Chọn phiếu nhập gốc thì chỉ hiện lô của phiếu đó.</div>
+    </form>
+}
+
+@if (Model.SupplierId is null)
+{
+    <section class="pm-card">
+        <div class="pm-empty">
+            <i class="bi bi-building" aria-hidden="true"></i>
+            Chọn nhà cung cấp để lập phiếu trả.
+        </div>
+    </section>
+}
+else
+{
+    <form asp-action="@action" asp-route-id="@Model.SupplierReturnId" method="post" class="d-flex flex-column gap-4" data-pm-repeater-form data-pm-sret-form
+          data-pm-draft="@(Model.IsEdit ? "sret-edit-" + Model.SupplierReturnId : "sret-new-" + Model.SupplierId + "-" + Model.GoodsReceiptId)" novalidate>
+        <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+        <input type="hidden" name="SupplierId" value="@Model.SupplierId" />
+        <input type="hidden" name="GoodsReceiptId" value="@Model.GoodsReceiptId" />
+        <script type="application/json" id="pm-sret-batches">@Json.Serialize(batchData)</script>
+
+        <section class="pm-card" aria-labelledby="sec-head">
+            <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+                <h2 id="sec-head" class="pm-h2">Thông tin phiếu trả</h2>
+                <span class="small text-muted-pm">Mã phiếu: <strong class="text-reset">@Model.Code</strong>@(Model.IsEdit ? "" : " (dự kiến, tự sinh khi lưu)")</span>
+            </div>
+            <dl class="pm-dl mb-3">
+                <dt>Nhà cung cấp</dt><dd>@Model.SupplierName</dd>
+                <dt>Phiếu nhập gốc</dt><dd class="num">@(Model.GoodsReceiptCode ?? "Không chọn")</dd>
+            </dl>
+            <label asp-for="Reason" class="form-label">Lý do trả hàng <span class="req">*</span></label>
+            <input asp-for="Reason" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: hàng cận hạn, trả lại theo thỏa thuận đổi hàng" />
+            <span asp-validation-for="Reason" class="field-validation-error"></span>
+        </section>
+
+        <section class="pm-card" aria-labelledby="sec-lines">
+            <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+                <h2 id="sec-lines" class="pm-h2">Lô trả nhà cung cấp</h2>
+                <span class="small text-muted-pm">Tổng tiền hoàn dự kiến: <strong class="text-reset num" data-pm-sret-total>—</strong></span>
+            </div>
+            <p class="small text-muted-pm mb-3">Số lượng theo đơn vị cơ sở. Đơn giá trả để trống thì lấy giá vốn của lô. Lưu phiếu chưa trừ tồn; tồn kho chỉ giảm khi bấm Xuất trả.</p>
+
+            @if (Model.BatchOptions.Count == 0)
+            {
+                <div class="pm-empty">
+                    <i class="bi bi-box-seam" aria-hidden="true"></i>
+                    Không còn lô nào nhập từ nhà cung cấp này để trả.
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3" data-pm-repeater="lines" data-pm-next="@Model.Lines.Count">
+                    @for (var i = 0; i < Model.Lines.Count; i++)
+                    {
+                        LineFields(Model.Lines[i], i.ToString(CultureInfo.InvariantCulture));
+                    }
+                    <template data-pm-template="lines">
+                        @{ LineFields(new SupplierReturnLineForm(), "__i__"); }
+                    </template>
+                </div>
+                <span asp-validation-for="Lines" class="field-validation-error"></span>
+                <button type="button" class="btn btn-sm btn-outline-secondary mt-3" data-pm-add="lines"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm lô</button>
+            }
+        </section>
+
+        <div class="pm-form-actions">
+            <button type="submit" class="btn btn-primary">Lưu phiếu trả</button>
+            @if (Model.IsEdit)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.SupplierReturnId">Quay lại</a>
+            }
+            else
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a>
+            }
+        </div>
+    </form>
+}

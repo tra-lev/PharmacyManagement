@@ -48,10 +48,11 @@ public static class NavigationMenu
             new MenuItem("stock", "Tồn kho & lô", "box-seam", "/Inventory/Stock", Any(P.F2_2_3, P.F2_3_2, P.F2_3_3_2, P.F2_4_1_1), true),
             new MenuItem("po", "Đặt hàng", "clipboard", "/Inventory/PurchaseOrders", Any(P.F2_1_1, P.F2_1_3), true),
             new MenuItem("gr", "Nhập kho", "truck", "/Inventory/Receipts", Any(P.F2_2_2, P.F2_2_1_1), true),
-            new MenuItem("sret", "Trả nhà cung cấp", "box-arrow-right", Soon("sret"), Any(P.F2_3_1), false),
+            new MenuItem("sret", "Trả nhà cung cấp", "box-arrow-right", "/Inventory/SupplierReturns", Any(P.F2_3_1, P.F2_3_5), true),
+            new MenuItem("spay", "Công nợ nhà cung cấp", "cash-coin", "/Inventory/SupplierPayments", Any(P.F2_2_5, P.F2_3_5), true),
             new MenuItem("disposal", "Hủy thuốc", "trash3", "/Inventory/Disposals", Any(P.F2_3_2), true),
-            new MenuItem("recall", "Thu hồi", "lock", Soon("recall"), Any(P.F2_3_3_1, P.F2_3_3_3), false),
-            new MenuItem("stocktake", "Kiểm kê", "clipboard-check", Soon("stocktake"), Any(P.F2_4_1_1, P.F2_4_2, P.F2_4_3_Approve), false),
+            new MenuItem("recall", "Thu hồi", "lock", "/Inventory/Recalls", Any(P.F2_3_3_1, P.F2_3_3_2, P.F2_3_3_3), true),
+            new MenuItem("stocktake", "Kiểm kê", "clipboard-check", "/Inventory/Stocktakes", Any(P.F2_4_1_1, P.F2_4_1_2, P.F2_4_2, P.F2_4_3, P.F2_4_3_Approve), true),
             new MenuItem("env", "Nhiệt độ – độ ẩm", "thermometer-half", Soon("env"), Any(P.F2_5_3), false)
         }),
         new MenuGroup("catalog", "Danh mục", new[]

@@ -1,0 +1,117 @@
+﻿@model StocktakeDetailsViewModel
+@{
+    ViewData["Title"] = "Nhập số thực tế " + Model.Code;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Kiểm kê</a> / <a asp-action="Details" asp-route-id="@Model.StocktakeId">@Model.Code</a> / Nhập số thực tế</p>
+        <h1 class="pm-title">Nhập số thực tế</h1>
+        <p class="pm-subtitle">@Model.Code · kiểm kê @Model.Scope · @Model.Lines.Count lô. Số đã nhập được lưu tạm trên máy này cho tới khi nộp biên bản.</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" asp-action="CountSheet" asp-route-id="@Model.StocktakeId" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In phiếu kiểm kê</a>
+        @if (Model.CanDelete)
+        {
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#delete-modal">Xóa phiếu</button>
+        }
+    </div>
+</div>
+
+<form asp-action="Count" asp-route-id="@Model.StocktakeId" method="post" class="d-flex flex-column gap-4" data-pm-stocktake-form
+      data-pm-draft="stocktake-count-@Model.StocktakeId" novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+
+    <section class="pm-card" aria-labelledby="sec-lines">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-1">
+            <h2 id="sec-lines" class="pm-h2">Số lượng đếm được</h2>
+            <span class="small text-muted-pm">Đã nhập <strong class="text-reset num" data-pm-entered>0</strong> / @Model.Lines.Count lô · chênh lệch <strong class="text-reset num" data-pm-diffs>0</strong> lô</span>
+        </div>
+        <p class="small text-muted-pm mb-3">Số lượng theo đơn vị cơ sở. Lô có chênh lệch so với tồn lúc tạo phiếu phải ghi lý do.</p>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Vị trí, thuốc, lô</th>
+                        <th scope="col" class="text-end">Tồn lúc tạo phiếu</th>
+                        <th scope="col">Thực tế <span class="req">*</span></th>
+                        <th scope="col" class="text-end">Chênh lệch</th>
+                        <th scope="col">Lý do chênh lệch</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (var i = 0; i < Model.Lines.Count; i++)
+                    {
+                        var l = Model.Lines[i];
+                        var p = "Lines[" + i.ToString(CultureInfo.InvariantCulture) + "].";
+                        Model.Entered.TryGetValue(l.StocktakeDetailId, out var entered);
+                        <tr data-pm-count-line data-pm-system="@Format.Input(l.SystemQuantity)">
+                            <td>
+                                <input type="hidden" name="@(p)StocktakeDetailId" value="@l.StocktakeDetailId" />
+                                <span class="fw-semibold">@l.MedicineName</span>
+                                <div class="small text-muted-pm"><span class="num">Lô @l.BatchNumber · HSD @l.ExpiryDate.ToString("dd/MM/yyyy", vi)</span> · @(l.Location ?? "Chưa xếp kệ")</div>
+                            </td>
+                            <td class="text-end num text-nowrap">@StockText.Quantity(l.SystemQuantity, l.BaseUnit)</td>
+                            <td class="pm-cell-input">
+                                <label class="visually-hidden" for="actual-@i">Số đếm được của @l.MedicineName lô @l.BatchNumber</label>
+                                <div class="input-group">
+                                    <input type="number" id="actual-@i" name="@(p)ActualQuantity" value="@Format.Input(entered?.ActualQuantity)" class="form-control text-end" min="0" step="any" inputmode="decimal" data-pm-actual />
+                                    <span class="input-group-text">@l.BaseUnit</span>
+                                </div>
+                            </td>
+                            <td class="text-end num text-nowrap" data-pm-diff>—</td>
+                            <td class="pm-cell-input">
+                                <label class="visually-hidden" for="reason-@i">Lý do chênh lệch của @l.MedicineName lô @l.BatchNumber</label>
+                                <input type="text" id="reason-@i" name="@(p)Reason" value="@(entered?.Reason)" class="form-control" maxlength="500" autocomplete="off" placeholder="Ví dụ: vỡ 1 lọ, bán chưa trừ" data-pm-reason />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="pm-card" aria-labelledby="sec-notes">
+        <h2 id="sec-notes" class="pm-h2 mb-3">Ghi chú biên bản</h2>
+        <label for="Notes" class="visually-hidden">Ghi chú</label>
+        <textarea id="Notes" name="Notes" class="form-control" rows="2" maxlength="1000">@(Model.EnteredNotes ?? Model.Notes)</textarea>
+    </section>
+
+    <div class="pm-form-actions">
+        @if (Model.CanSubmit)
+        {
+            <button type="submit" class="btn btn-primary">Nộp biên bản kiểm kê</button>
+        }
+        else
+        {
+            <span class="small text-muted-pm align-self-center">Tài khoản chưa có quyền lập biên bản kiểm kê; người có quyền mở phiếu này để nộp.</span>
+        }
+        <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@Model.StocktakeId">Quay lại</a>
+    </div>
+</form>
+
+@if (Model.CanDelete)
+{
+    <div class="modal fade" id="delete-modal" tabindex="-1" aria-labelledby="delete-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Delete" asp-route-id="@Model.StocktakeId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="delete-title">Xóa phiếu @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Phiếu đang kiểm đếm chưa ảnh hưởng tồn kho. Xóa xong, các lô trong phiếu được đưa vào phiếu kiểm kê khác.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không xóa</button>
+                    <button type="submit" class="btn btn-danger">Xóa phiếu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/stocktake.js" asp-append-version="true"></script>
+}

@@ -88,7 +88,8 @@ public sealed record StockAlertCounts(int BelowMinimum, int NearExpiry, int Expi
 }
 
 /// <summary>Quyền xem chứng từ liên quan — quyết định có hiện liên kết hay chỉ hiện mã.</summary>
-public sealed record StockLinks(bool Receipts, bool Invoices, bool Returns, bool Catalog, bool Disposals)
+public sealed record StockLinks(bool Receipts, bool Invoices, bool Returns, bool Catalog, bool Disposals,
+    bool SupplierReturns = false, bool Recalls = false, bool Stocktakes = false)
 {
     public static readonly StockLinks None = new(false, false, false, false, false);
 }
@@ -368,5 +369,16 @@ public sealed class StockBatchViewModel
 
     /// <summary>Có quyền F2.3.2, lô còn hàng và không đang thu hồi — hiện nút "Hủy lô này" (DEC-41).</summary>
     public bool CanDispose { get; set; }
+
+    /// <summary>Phiếu thu hồi chứa lô này (nếu lô đang / đã thu hồi).</summary>
+    public int? RecallId { get; init; }
+    public string? RecallCode { get; init; }
+
+    /// <summary>Có quyền F2.3.1, lô còn hàng, không đang thu hồi, có phiếu nhập gốc — hiện nút "Trả nhà cung cấp" (DEC-44).</summary>
+    public bool CanReturn { get; set; }
+
+    /// <summary>Có quyền F2.3.3.1, lô chưa thu hồi — hiện nút "Thu hồi lô này" (DEC-45).</summary>
+    public bool CanRecall { get; set; }
+
     public StockLinks Links { get; set; } = StockLinks.None;
 }
