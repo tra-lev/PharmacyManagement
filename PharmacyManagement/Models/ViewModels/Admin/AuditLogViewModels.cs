@@ -11,7 +11,8 @@ public static class AuditText
         new Group("catalog", "Danh mục"),
         new Group("sales", "Bán hàng, ca, đổi trả"),
         new Group("stock", "Kho"),
-        new Group("debt", "Công nợ nhà cung cấp")
+        new Group("debt", "Công nợ nhà cung cấp"),
+        new Group("sync", "Liên thông dữ liệu")
     };
 
     private static readonly Dictionary<string, (string Label, string Group)> Actions = new(StringComparer.Ordinal)
@@ -102,7 +103,11 @@ public static class AuditText
         // Công nợ nhà cung cấp
         ["SUPPLIER_PAY"] = ("Lập phiếu chi", "debt"),
         ["SUPPLIER_REFUND"] = ("Lập phiếu thu tiền hoàn", "debt"),
-        ["SUPPLIER_PAYMENT_VOID"] = ("Hủy phiếu chi, thu", "debt")
+        ["SUPPLIER_PAYMENT_VOID"] = ("Hủy phiếu chi, thu", "debt"),
+
+        // Liên thông dữ liệu
+        ["INTEGRATION_RUN"] = ("Tổng hợp và gửi liên thông", "sync"),
+        ["INTEGRATION_RESEND"] = ("Gửi lại dữ liệu liên thông", "sync")
     };
 
     private static readonly Dictionary<string, string> Entities = new(StringComparer.Ordinal)
@@ -128,7 +133,8 @@ public static class AuditText
         ["Stocktakes"] = "Phiếu kiểm kê",
         ["ProductRecalls"] = "Phiếu thu hồi",
         ["SupplierReturns"] = "Phiếu trả nhà cung cấp",
-        ["SupplierPayments"] = "Phiếu chi, thu"
+        ["SupplierPayments"] = "Phiếu chi, thu",
+        ["IntegrationLogs"] = "Liên thông dữ liệu"
     };
 
     /// <summary>Tên trường hay gặp trong dữ liệu trước / sau.</summary>

@@ -1,0 +1,147 @@
+﻿@model IntegrationDetailsViewModel
+@{
+    ViewData["Title"] = DqgText.Type(Model.Type) + " " + Model.DocumentCode;
+    var p = Model.Packet;
+    var isImport = Model.Type == DqgText.ImportType;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Liên thông dữ liệu</a> / @Model.DocumentCode</p>
+        <h1 class="pm-title">@DqgText.Type(Model.Type) · <span class="num">@Model.DocumentCode</span></h1>
+        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <span class="pm-badge @DqgText.Tone(Model.Status)">@DqgText.Status(Model.Status)</span>
+        </div>
+    </div>
+    @if (Model.CanResend)
+    {
+        <form asp-action="Resend" asp-route-id="@Model.LogId" method="post">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-send" aria-hidden="true"></i> Gửi lại</button>
+        </form>
+    }
+</div>
+
+@if (Model.Error is not null)
+{
+    <div class="pm-alert bad mb-4" role="status">
+        <i class="bi bi-exclamation-octagon" aria-hidden="true"></i>
+        <div>
+            @Model.Error
+            <div class="small mt-1">
+                Sửa dữ liệu gốc (ví dụ khai số đăng ký ở trang thuốc), rồi bấm Gửi lại — gói tin được dựng lại từ dữ liệu mới nhất.
+            </div>
+        </div>
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <section class="pm-card h-100" aria-labelledby="i-head">
+            <h2 id="i-head" class="pm-h2 mb-3">Gói tin</h2>
+            <dl class="pm-dl mb-0">
+                <dt>Chứng từ</dt>
+                <dd class="num">
+                    @if (Model.CanOpenDocument)
+                    {
+                        if (isImport)
+                        {
+                            <a asp-area="Inventory" asp-controller="Receipts" asp-action="Details" asp-route-id="@Model.ReferenceId">@Model.DocumentCode</a>
+                        }
+                        else
+                        {
+                            <a asp-area="Sales" asp-controller="Invoices" asp-action="Details" asp-route-id="@Model.ReferenceId">@Model.DocumentCode</a>
+                        }
+                    }
+                    else
+                    {
+                        @Model.DocumentCode
+                    }
+                </dd>
+                <dt>Tổng hợp lúc</dt><dd class="num">@Format.When(Model.CreatedAt)</dd>
+                <dt>Gửi gần nhất</dt><dd class="num">@(Model.LastAttemptAt is null ? "Chưa gửi" : Format.When(Model.LastAttemptAt.Value))</dd>
+                <dt>Số lần bị từ chối</dt><dd class="num">@Model.RetryCount</dd>
+                @if (Model.ReceiptCode is not null)
+                {
+                    <dt>Mã tiếp nhận</dt><dd class="num">@Model.ReceiptCode</dd>
+                }
+            </dl>
+        </section>
+    </div>
+    <div class="col-lg-6">
+        <section class="pm-card h-100" aria-labelledby="i-doc">
+            <h2 id="i-doc" class="pm-h2 mb-3">Thông tin gửi</h2>
+            @if (p is null)
+            {
+                <p class="text-muted-pm mb-0">Gói tin này chỉ lưu mã chứng từ. Nội dung đầy đủ được dựng lại khi gửi.</p>
+            }
+            else
+            {
+                <dl class="pm-dl mb-0">
+                    <dt>Cơ sở</dt><dd>@p.CoSo</dd>
+                    <dt>Ngày</dt><dd class="num">@p.Ngay.Replace("T", " ")</dd>
+                    <dt>@(isImport ? "Nhà cung cấp" : "Khách hàng")</dt><dd>@(p.DoiTac ?? (isImport ? "—" : "Khách lẻ"))</dd>
+                    @if (isImport)
+                    {
+                        <dt>Mã số thuế</dt><dd class="num">@(p.MaSoThue ?? "—")</dd>
+                        <dt>Số hóa đơn nhà cung cấp</dt><dd class="num">@(p.SoHoaDonNcc ?? "—")</dd>
+                    }
+                    else
+                    {
+                        <dt>Đơn thuốc</dt>
+                        <dd>
+                            @if (p.DonThuoc is null)
+                            {
+                                <text>Không có</text>
+                            }
+                            else
+                            {
+                                <text><span class="num">@p.DonThuoc.MaDon</span> · @(p.DonThuoc.BacSi ?? "—") · @(p.DonThuoc.CoSoKham ?? "—")</text>
+                            }
+                        </dd>
+                    }
+                </dl>
+            }
+        </section>
+    </div>
+</div>
+
+@if (p is not null)
+{
+    <section class="pm-card" aria-labelledby="i-lines">
+        <h2 id="i-lines" class="pm-h2 mb-3">Thuốc liên thông</h2>
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Thuốc</th>
+                        <th scope="col">Số đăng ký</th>
+                        <th scope="col">Lô, hạn dùng</th>
+                        <th scope="col" class="text-end">Số lượng</th>
+                        <th scope="col" class="text-end">Đơn giá</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in p.Thuoc)
+                    {
+                        <tr>
+                            <td>@l.TenThuoc <div class="small text-muted-pm num">@l.MaThuoc@(l.KeDon ? " · thuốc kê đơn" : "")</div></td>
+                            <td class="num">
+                                @if (string.IsNullOrWhiteSpace(l.SoDangKy))
+                                {
+                                    <span class="pm-badge bad">Chưa có</span>
+                                }
+                                else
+                                {
+                                    @l.SoDangKy
+                                }
+                            </td>
+                            <td class="small num">@(l.SoLo ?? "—")<div class="text-muted-pm">@(l.HanDung ?? "—")</div></td>
+                            <td class="text-end num text-nowrap">@Format.Number(l.SoLuong) @l.DonViTinh</td>
+                            <td class="text-end num text-nowrap">@Format.Money(l.DonGia)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}

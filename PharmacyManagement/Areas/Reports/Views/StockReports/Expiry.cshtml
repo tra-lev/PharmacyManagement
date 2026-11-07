@@ -1,0 +1,134 @@
+﻿@model ExpiryReportViewModel
+@{
+    ViewData["Title"] = "Thuốc cận hạn";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string M(decimal v) => Format.Money(Math.Round(v));
+    var printUrl = Url.Action("ExpiryPrint", new { f.Q, f.CategoryId, f.Show })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Báo cáo</p>
+        <h1 class="pm-title">Thuốc cận hạn</h1>
+        <p class="pm-subtitle">Ngày @Model.Today.ToString("dd/MM/yyyy", vi) · lô còn tồn đã hết hạn hoặc còn hạn trong ngưỡng cảnh báo (chung @N(Model.DefaultWarningDays) ngày, có thuốc đặt riêng).</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="@printUrl" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In báo cáo</a>
+</div>
+
+@if (Model.CanSeeMovement)
+{
+    <partial name="_Tabs" model="@("expiry")" />
+}
+
+<form method="get" asp-action="Expiry" class="pm-card mb-4" role="search">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+            <label for="q" class="form-label">Thuốc</label>
+            <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Tên hoặc mã thuốc…" autocomplete="off" />
+        </div>
+        <div class="col-md-3">
+            <label for="cat" class="form-label">Nhóm thuốc</label>
+            <select id="cat" name="CategoryId" class="form-select">
+                <option value="">Tất cả nhóm</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <!option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="show" class="form-label">Hiển thị</label>
+            <select id="show" name="Show" class="form-select">
+                <!option value="" selected="@(f.Show is null)">Hết hạn và cận hạn</!option>
+                <!option value="expired" selected="@(f.Show == "expired")">Chỉ lô đã hết hạn</!option>
+                <!option value="near" selected="@(f.Show == "near")">Chỉ lô cận hạn</!option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary">Xem</button>
+        </div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6">
+        <div class="pm-stat h-100" data-tone="@(Model.ExpiredLots > 0 ? "bad" : "calm")">
+            <span class="l">Đã hết hạn, còn trong kho</span>
+            <span class="v">@N(Model.ExpiredLots) lô</span>
+            <span class="s">Giá vốn @M(Model.ExpiredValue) — cần lập biên bản hủy hoặc trả nhà cung cấp.</span>
+        </div>
+    </div>
+    <div class="col-sm-6">
+        <div class="pm-stat h-100" data-tone="@(Model.NearLots > 0 ? "warn" : "calm")">
+            <span class="l">Cận hạn</span>
+            <span class="v">@N(Model.NearLots) lô</span>
+            <span class="s">Giá vốn @M(Model.NearValue) — ưu tiên bán trước.</span>
+        </div>
+    </div>
+</div>
+
+<section class="pm-card" aria-label="Danh sách lô cận hạn">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty"><i class="bi bi-calendar-check" aria-hidden="true"></i> Không có lô nào hết hạn hoặc cận hạn.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Thuốc, lô</th>
+                        <th scope="col">Hạn dùng</th>
+                        <th scope="col" class="text-end">Tồn</th>
+                        <th scope="col" class="text-end">Giá vốn</th>
+                        <th scope="col">Vị trí, nhà cung cấp</th>
+                        @if (Model.CanDispose)
+                        {
+                            <th scope="col"><span class="visually-hidden">Thao tác</span></th>
+                        }
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td>
+                                <span class="fw-semibold">@r.MedicineName</span>
+                                <div class="small text-muted-pm num">
+                                    @if (Model.CanOpenBatch)
+                                    {
+                                        <a asp-area="Inventory" asp-controller="Stock" asp-action="Batch" asp-route-id="@r.BatchId">Lô @r.BatchNumber</a>
+                                    }
+                                    else
+                                    {
+                                        <text>Lô @r.BatchNumber</text>
+                                    }
+                                    · @r.MedicineCode
+                                </div>
+                            </td>
+                            <td class="text-nowrap">
+                                <span class="num">@r.ExpiryDate.ToString("dd/MM/yyyy", vi)</span>
+                                <div><span class="pm-badge @(r.Expired ? "bad" : "warn")">@(r.DaysLeft == 0 ? "Hết hạn hôm nay" : r.Expired ? "Hết hạn " + N(-r.DaysLeft) + " ngày" : "Còn " + N(r.DaysLeft) + " ngày")</span></div>
+                            </td>
+                            <td class="text-end num text-nowrap">@Format.Number(r.Quantity) @r.BaseUnit</td>
+                            <td class="text-end num text-nowrap">@M(r.Value)</td>
+                            <td class="small">@(r.Location ?? "Chưa xếp kệ")<div class="text-muted-pm">@(r.SupplierName ?? "—")</div></td>
+                            @if (Model.CanDispose)
+                            {
+                                <td class="text-end">
+                                    @if (r.Expired && r.Status != (byte)BatchStatus.Recalled)
+                                    {
+                                        <a class="btn btn-sm btn-outline-secondary" asp-area="Inventory" asp-controller="Disposals" asp-action="Create" asp-route-batchId="@r.BatchId">Hủy lô</a>
+                                    }
+                                </td>
+                            }
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

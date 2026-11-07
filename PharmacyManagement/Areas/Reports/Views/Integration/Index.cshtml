@@ -1,0 +1,164 @@
+﻿@model IntegrationListViewModel
+@{
+    ViewData["Title"] = "Liên thông dữ liệu";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string PageUrl(int page) => Url.Action("Index", new { f.Type, f.Status, f.Q, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Báo cáo</p>
+        <h1 class="pm-title">Liên thông Dược quốc gia</h1>
+        <p class="pm-subtitle">
+            Phiếu nhập và hóa đơn có thuốc liên thông được tự động tổng hợp và gửi mỗi phút (mô phỏng).
+            Mất mạng thì gói tin nằm chờ, bán hàng vẫn bình thường; có mạng lại sẽ tự gửi.
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <form asp-action="RunNow" method="post">
+            <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Tổng hợp và gửi ngay</button>
+        </form>
+        @if (Model.Failed > 0)
+        {
+            <form asp-action="ResendAll" method="post">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-send" aria-hidden="true"></i> Gửi lại tất cả lỗi</button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="pm-stat h-100" data-tone="@(Model.Online == false ? "bad" : "calm")">
+            <span class="l">Kết nối</span>
+            <span class="v">@(Model.Online is null ? "Chưa kiểm tra" : Model.Online.Value ? "Có mạng" : "Mất mạng")</span>
+            <span class="s">@(Model.LastRunAt is null ? "Tác vụ tự động chưa chạy lần nào kể từ khi khởi động." : "Lần chạy gần nhất " + Format.When(Model.LastRunAt.Value))</span>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a class="pm-stat h-100 text-decoration-none text-reset" data-tone="@(Model.Pending + Model.NotQueued > 0 ? "wait" : "calm")" asp-action="Index" asp-route-Status="pending">
+            <span class="l">Chờ gửi</span>
+            <span class="v">@N(Model.Pending)</span>
+            <span class="s">@(Model.NotQueued > 0 ? N(Model.NotQueued) + " chứng từ mới sẽ được tổng hợp ở lần chạy tới." : "Gói tin đang lưu tại máy chủ nhà thuốc.")</span>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <a class="pm-stat h-100 text-decoration-none text-reset" data-tone="@(Model.Failed > 0 ? "bad" : "calm")" asp-action="Index" asp-route-Status="failed">
+            <span class="l">Lỗi cần xử lý</span>
+            <span class="v">@N(Model.Failed)</span>
+            <span class="s">Sửa dữ liệu (ví dụ số đăng ký thuốc) rồi gửi lại.</span>
+        </a>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="pm-stat h-100" data-tone="good">
+            <span class="l">Đã gửi hôm nay</span>
+            <span class="v">@N(Model.SucceededToday)</span>
+        </div>
+    </div>
+</div>
+
+<form method="get" asp-action="Index" class="pm-card pm-filter mb-4" role="search">
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm chứng từ</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Mã phiếu nhập hoặc mã hóa đơn…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="type" class="visually-hidden">Loại dữ liệu</label>
+        <select id="type" name="Type" class="form-select">
+            <!option value="" selected="@(f.Type is null)">Nhập và bán</!option>
+            <!option value="import" selected="@(f.Type == "import")">Dữ liệu nhập thuốc</!option>
+            <!option value="sale" selected="@(f.Type == "sale")">Dữ liệu bán thuốc</!option>
+        </select>
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Trạng thái</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi trạng thái</!option>
+            <!option value="pending" selected="@(f.Status == "pending")">Chờ gửi</!option>
+            <!option value="ok" selected="@(f.Status == "ok")">Đã gửi</!option>
+            <!option value="failed" selected="@(f.Status == "failed")">Lỗi</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Lọc</button>
+        <span class="d-flex">
+            @if (f.IsFiltered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<section class="pm-card" aria-label="Danh sách gói tin liên thông">
+    <p class="small text-muted-pm mb-3">
+        @if (f.IsFiltered)
+        {
+            <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) gói tin</text>
+        }
+        else
+        {
+            <text>@N(Model.GrandTotal) gói tin</text>
+        }
+    </p>
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty"><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Không có gói tin nào khớp bộ lọc.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Chứng từ</th>
+                        <th scope="col">Loại dữ liệu</th>
+                        <th scope="col">Lần gửi gần nhất</th>
+                        <th scope="col">Trạng thái</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="pm-row-link">
+                            <td>
+                                <a class="fw-semibold text-reset stretched-link num" asp-action="Details" asp-route-id="@r.LogId">@r.DocumentCode</a>
+                                <div class="small text-muted-pm num">Tổng hợp @Format.When(r.CreatedAt)</div>
+                            </td>
+                            <td class="small">@DqgText.Type(r.Type)</td>
+                            <td class="small num">@(r.LastAttemptAt is null ? "Chưa gửi" : Format.When(r.LastAttemptAt.Value))</td>
+                            <td>
+                                <span class="pm-badge @DqgText.Tone(r.Status)">@DqgText.Status(r.Status)</span>
+                                @if (r.Status == (byte)IntegrationStatus.Failed && r.Error is not null)
+                                {
+                                    <div class="small text-muted-pm">@r.Error</div>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
