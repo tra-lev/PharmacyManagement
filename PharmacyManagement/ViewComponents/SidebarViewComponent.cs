@@ -24,15 +24,17 @@ public sealed class SidebarViewComponent : ViewComponent
     private readonly IStockService _stock;
     private readonly IStocktakeService _stocktakes;
     private readonly IRecallService _recalls;
+    private readonly IDqgSyncService _dqg;
 
     public SidebarViewComponent(IPermissionService permissions, IReturnService returns, IStockService stock,
-        IStocktakeService stocktakes, IRecallService recalls)
+        IStocktakeService stocktakes, IRecallService recalls, IDqgSyncService dqg)
     {
         _permissions = permissions;
         _returns = returns;
         _stock = stock;
         _stocktakes = stocktakes;
         _recalls = recalls;
+        _dqg = dqg;
     }
 
     public async Task<IViewComponentResult> InvokeAsync(string? activeKey)
@@ -62,6 +64,8 @@ public sealed class SidebarViewComponent : ViewComponent
         }
         // Thu hồi: phiếu chưa hoàn tất, cho người lập phiếu thu hồi
         var openRecalls = codes.Contains(PermissionCodes.F2_3_3_3) ? await _recalls.OpenCountAsync() : 0;
+        // Liên thông: gói tin bị từ chối cần Quản lý xử lý (4.4.2.3)
+        var dqgFailed = codes.Contains(PermissionCodes.F4_4_2_3) ? await _dqg.FailedCountAsync() : 0;
 
         var groups = new List<SidebarGroupViewModel>();
         foreach (var group in NavigationMenu.Groups)
@@ -72,12 +76,13 @@ public sealed class SidebarViewComponent : ViewComponent
                 .Where(i => i.AnyOf.Count == 0 || i.AnyOf.Any(codes.Contains))
                 .Select(i => new SidebarItemViewModel(i, i.Key == activeKey,
                     !emailVerified && i.AnyOf.Count > 0 && i.AnyOf.All(PermissionCodes.RequiresVerifiedEmail),
-                    i.Key switch { "returns" => returnRequests, "stock" => stockAlerts, "stocktake" => stocktakeWork, "recall" => openRecalls, _ => 0 },
+                    i.Key switch { "returns" => returnRequests, "stock" => stockAlerts, "stocktake" => stocktakeWork, "recall" => openRecalls, "sync" => dqgFailed, _ => 0 },
                     i.Key switch
                     {
                         "stock" => "Thuốc dưới mức tối thiểu, lô cận hạn và lô hết hạn",
                         "stocktake" => "Phiếu kiểm kê chờ duyệt hoặc chờ điều chỉnh tồn",
                         "recall" => "Phiếu thu hồi chưa hoàn tất",
+                        "sync" => "Gói tin liên thông bị lỗi cần xử lý",
                         _ => null
                     }))
                 .ToList();

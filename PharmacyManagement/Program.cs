@@ -110,6 +110,11 @@ builder.Services.AddScoped<IRecallService, RecallService>();
 builder.Services.AddScoped<IRevenueReportService, RevenueReportService>();
 builder.Services.AddScoped<IRoleAdminService, RoleAdminService>();
 builder.Services.AddScoped<IAuditLogQueryService, AuditLogQueryService>();
+builder.Services.AddScoped<IStockReportService, StockReportService>();
+builder.Services.AddScoped<IDqgSyncService, DqgSyncService>();
+// Liên thông Dược quốc gia (mô phỏng): trạng thái lần chạy dùng chung + tác vụ chạy ngầm mỗi phút (DEC-50)
+builder.Services.AddSingleton<DqgSyncState>();
+builder.Services.AddHostedService<PharmacyManagement.BackgroundJobs.DqgSyncWorker>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.AddControllersWithViews(o =>

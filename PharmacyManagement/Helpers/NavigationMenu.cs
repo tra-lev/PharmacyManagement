@@ -65,9 +65,9 @@ public static class NavigationMenu
         {
             new MenuItem("revenue", "Doanh thu & lợi nhuận", "bar-chart", "/Reports/Revenue", Any(P.F4_1_1, P.F4_1_2), true),
             new MenuItem("mysales", "Doanh số của tôi", "bar-chart", "/Reports/Revenue/Mine", Any(P.F4_1_1_Own), true, HideIfHas: P.F4_1_1),
-            new MenuItem("nxt", "Nhập – xuất – tồn", "arrow-left-right", Soon("nxt"), Any(P.F4_2_1, P.F4_2_2), false),
+            new MenuItem("nxt", "Nhập – xuất – tồn", "arrow-left-right", "/Reports/StockReports", Any(P.F4_2_1, P.F4_2_2), true),
             new MenuItem("gpp", "Sổ GPP", "journal-text", Soon("gpp"), Any(P.F4_3_1, P.F4_3_2, P.F4_3_3), false),
-            new MenuItem("sync", "Liên thông dữ liệu", "arrow-repeat", Soon("sync"), Any(P.F4_4_2_3), false)
+            new MenuItem("sync", "Liên thông dữ liệu", "arrow-repeat", "/Reports/Integration", Any(P.F4_4_2_3), true)
         }),
         new MenuGroup("admin", "Quản trị", new[]
         {

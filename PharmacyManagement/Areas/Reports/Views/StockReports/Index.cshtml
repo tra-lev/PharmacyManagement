@@ -1,0 +1,174 @@
+﻿@model StockMovementViewModel
+@{
+    ViewData["Title"] = "Nhập – xuất – tồn";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    string M(decimal v) => Format.Money(Math.Round(v));
+    string PageUrl(int page) => Url.Action("Index", new { f.From, f.To, f.Q, f.CategoryId, f.Show, page })!;
+    var printUrl = Url.Action("Print", new { f.From, f.To, f.Q, f.CategoryId, f.Show })!;
+    var period = Model.From.ToString("dd/MM/yyyy", vi) + " – " + Model.To.ToString("dd/MM/yyyy", vi);
+}
+@functions {
+    private static Microsoft.AspNetCore.Html.IHtmlContent Cell(QtyValue v, bool strong = false)
+    {
+        var html = "<td class=\"text-end num text-nowrap" + (strong ? " fw-semibold" : "") + "\">"
+                   + (v.IsZero ? "<span class=\"text-muted-pm\">—</span>"
+                       : System.Net.WebUtility.HtmlEncode(Format.Number(v.Quantity))
+                         + "<div class=\"small text-muted-pm\">" + System.Net.WebUtility.HtmlEncode(Format.Money(Math.Round(v.Value))) + "</div>")
+                   + "</td>";
+        return new Microsoft.AspNetCore.Html.HtmlString(html);
+    }
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Báo cáo</p>
+        <h1 class="pm-title">Nhập – xuất – tồn</h1>
+        <p class="pm-subtitle">@period@(Model.CategoryName is null ? "" : " · " + Model.CategoryName) · số lượng theo đơn vị cơ sở, giá trị theo giá vốn từng lô.</p>
+    </div>
+    <a class="btn btn-outline-secondary" href="@printUrl" target="_blank" rel="noopener"><i class="bi bi-printer" aria-hidden="true"></i> In báo cáo</a>
+</div>
+
+@if (Model.CanSeeExpiry)
+{
+    <partial name="_Tabs" model="@("movement")" />
+}
+
+@if (Model.FilterError is not null)
+{
+    <div class="pm-alert warn mb-4" role="status"><i class="bi bi-info-circle" aria-hidden="true"></i> @Model.FilterError</div>
+}
+
+<form method="get" asp-action="Index" class="pm-card mb-4" role="search">
+    <div class="row g-3 align-items-end">
+        <div class="col-md-4 col-xl-3">
+            <label for="q" class="form-label">Thuốc</label>
+            <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Tên hoặc mã thuốc…" autocomplete="off" />
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <label for="from" class="form-label">Từ ngày</label>
+            <input type="date" id="from" name="From" value="@f.From" class="form-control" />
+        </div>
+        <div class="col-6 col-md-4 col-xl-2">
+            <label for="to" class="form-label">Đến ngày</label>
+            <input type="date" id="to" name="To" value="@f.To" class="form-control" />
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <label for="cat" class="form-label">Nhóm thuốc</label>
+            <select id="cat" name="CategoryId" class="form-select">
+                <option value="">Tất cả nhóm</option>
+                @foreach (var c in Model.Categories)
+                {
+                    <!option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</!option>
+                }
+            </select>
+        </div>
+        <div class="col-md-6 col-xl-2">
+            <label for="show" class="form-label">Hiển thị</label>
+            <select id="show" name="Show" class="form-select">
+                <!option value="" selected="@(f.Show is null)">Thuốc có tồn hoặc phát sinh</!option>
+                <!option value="moved" selected="@(f.Show == "moved")">Chỉ thuốc có phát sinh</!option>
+            </select>
+        </div>
+        <div class="col-xl-1">
+            <button type="submit" class="btn btn-primary">Xem</button>
+        </div>
+    </div>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3"><div class="pm-stat h-100" data-tone="calm"><span class="l">Tồn đầu kỳ</span><span class="v">@M(Model.OpeningValue)</span></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="pm-stat h-100" data-tone="good"><span class="l">Nhập trong kỳ</span><span class="v">@M(Model.InValue)</span></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="pm-stat h-100" data-tone="wait"><span class="l">Xuất trong kỳ</span><span class="v">@M(Model.OutValue)</span></div></div>
+    <div class="col-sm-6 col-xl-3"><div class="pm-stat h-100" data-tone="calm"><span class="l">Tồn cuối kỳ</span><span class="v">@M(Model.ClosingValue)</span><span class="s">@N(Model.Total) thuốc</span></div></div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="t-types">
+    <h2 id="t-types" class="pm-h2 mb-3">Theo loại biến động</h2>
+    <div class="row g-4">
+        <div class="col-md-6">
+            <dl class="pm-dl mb-0">
+                @foreach (var t in Model.ByType.Where(t => t.IsIn))
+                {
+                    <dt>@t.Name</dt><dd class="num text-end">@M(t.Value)</dd>
+                }
+            </dl>
+        </div>
+        <div class="col-md-6">
+            <dl class="pm-dl mb-0">
+                @foreach (var t in Model.ByType.Where(t => !t.IsIn))
+                {
+                    <dt>@t.Name</dt><dd class="num text-end">@M(t.Value)</dd>
+                }
+            </dl>
+        </div>
+    </div>
+</section>
+
+<section class="pm-card" aria-label="Nhập – xuất – tồn theo thuốc">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> Không có thuốc nào khớp bộ lọc.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="pm-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Thuốc</th>
+                        <th scope="col" class="text-end">Tồn đầu</th>
+                        <th scope="col" class="text-end">Nhập mua</th>
+                        <th scope="col" class="text-end">Nhập khác</th>
+                        <th scope="col" class="text-end">Xuất bán</th>
+                        <th scope="col" class="text-end">Xuất khác</th>
+                        <th scope="col" class="text-end">Tồn cuối</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td>
+                                @if (Model.CanOpenMedicine)
+                                {
+                                    <a class="fw-semibold" asp-area="Inventory" asp-controller="Stock" asp-action="Medicine" asp-route-id="@r.MedicineId">@r.Name</a>
+                                }
+                                else
+                                {
+                                    <span class="fw-semibold">@r.Name</span>
+                                }
+                                <div class="small text-muted-pm num">@r.Code · @r.BaseUnit</div>
+                            </td>
+                            @Cell(r.Opening)
+                            @Cell(r.Purchased)
+                            @Cell(r.OtherIn)
+                            @Cell(r.Sold)
+                            @Cell(r.OtherOut)
+                            @Cell(r.Closing, strong: true)
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <p class="form-text mb-0 mt-2">Nhập khác: khách trả nhập lại, kiểm kê thừa. Xuất khác: trả nhà cung cấp, hủy thuốc, thu hồi, kiểm kê thiếu.</p>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
