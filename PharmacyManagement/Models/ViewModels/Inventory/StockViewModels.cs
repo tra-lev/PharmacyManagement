@@ -310,6 +310,9 @@ public sealed class StockMedicineViewModel
 
     public bool FullView { get; set; }
     public StockLinks Links { get; set; } = StockLinks.None;
+
+    /// <summary>Có quyền F1.5.2 hoặc F1.5.3 — hiện liên kết sang trang thiết lập định mức tồn (DEC-42).</summary>
+    public bool CanSetPolicy { get; set; }
 }
 
 // ------------------------------------------------------------------ Chi tiết lô

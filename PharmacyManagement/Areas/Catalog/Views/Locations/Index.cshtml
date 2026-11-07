@@ -1,0 +1,92 @@
+﻿@model LocationListViewModel
+@{
+    ViewData["Title"] = "Tủ, kệ";
+    string N(int n) => n.ToString("N0", CultureInfo.GetCultureInfo("vi-VN"));
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Danh mục</p>
+        <h1 class="pm-title">Tủ, kệ</h1>
+        <p class="pm-subtitle">@N(Model.Cabinets.Count) tủ · @N(Model.ShelfCount) kệ · lô thuốc được xếp lên kệ khi nhập kho.</p>
+    </div>
+    <a class="btn btn-primary" asp-action="Create" asp-route-type="1"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm tủ</a>
+</div>
+
+@if (Model.Cabinets.Count == 0)
+{
+    <section class="pm-card">
+        <div class="pm-empty">
+            <i class="bi bi-grid-3x3" aria-hidden="true"></i>
+            Chưa khai báo tủ nào. Thêm tủ trước, rồi thêm các kệ trong tủ.
+        </div>
+    </section>
+}
+else
+{
+    <div class="d-flex flex-column gap-4">
+        @foreach (var c in Model.Cabinets)
+        {
+            <section class="pm-card" aria-labelledby="cab-@c.LocationId">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h2 id="cab-@c.LocationId" class="pm-h2 mb-1"><span class="num">@c.Code</span> · @c.Name</h2>
+                        @if (!string.IsNullOrWhiteSpace(c.Description))
+                        {
+                            <p class="small text-muted-pm mb-1">@c.Description</p>
+                        }
+                        <span class="small text-muted-pm">@N(c.Shelves.Count) kệ · @N(c.BatchCount) lô còn hàng</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Create" asp-route-type="2" asp-route-parentId="@c.LocationId"><i class="bi bi-plus-lg" aria-hidden="true"></i> Thêm kệ</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@c.LocationId"><i class="bi bi-pencil" aria-hidden="true"></i> Sửa tủ</a>
+                    </div>
+                </div>
+
+                @if (c.Shelves.Count == 0)
+                {
+                    <p class="small text-muted-pm mb-0">Tủ chưa có kệ nào.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="pm-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Mã kệ</th>
+                                    <th scope="col">Tên kệ</th>
+                                    <th scope="col">Mô tả</th>
+                                    <th scope="col" class="text-end">Lô còn hàng</th>
+                                    <th scope="col"><span class="visually-hidden">Thao tác</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in c.Shelves)
+                                {
+                                    <tr>
+                                        <td class="num fw-semibold">@s.Code</td>
+                                        <td>@s.Name</td>
+                                        <td class="small text-muted-pm">@(string.IsNullOrWhiteSpace(s.Description) ? "—" : s.Description)</td>
+                                        <td class="text-end num">
+                                            @if (Model.CanViewStock && s.BatchCount > 0)
+                                            {
+                                                <a asp-area="Inventory" asp-controller="Stock" asp-action="Batches" asp-route-locationId="@s.LocationId">@N(s.BatchCount)</a>
+                                            }
+                                            else
+                                            {
+                                                @N(s.BatchCount)
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <a class="btn btn-sm btn-outline-secondary" asp-action="Edit" asp-route-id="@s.LocationId">Sửa</a>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
+    </div>
+}

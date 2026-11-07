@@ -74,6 +74,7 @@ public class StockController : Controller
         if (model is null) return NotFound();
         model.FullView = full;
         model.Links = full ? await LinksAsync() : StockLinks.None;
+        model.CanSetPolicy = full && (await HasAsync(PermissionCodes.F1_5_2) || await HasAsync(PermissionCodes.F1_5_3));
         return View(model);
     }
 

@@ -1,0 +1,18 @@
+﻿@model LocationFormViewModel
+@{
+    var kind = Model.IsShelf ? "kệ" : "tủ";
+    ViewData["Title"] = "Thêm " + kind;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Tủ, kệ</a> / Thêm @kind</p>
+        <h1 class="pm-title">Thêm @kind</h1>
+        <p class="pm-subtitle">@(Model.IsShelf ? "Kệ nằm trong một tủ; lô thuốc được xếp lên kệ khi nhập kho." : "Tủ chứa các kệ; thêm tủ xong thì thêm kệ cho tủ.")</p>
+    </div>
+</div>
+
+<partial name="_LocationForm" model="Model" />
+
+@section Scripts {
+    <partial name="_FormValidation" />
+}

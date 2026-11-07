@@ -1,0 +1,216 @@
+﻿@model PolicyListViewModel
+@{
+    ViewData["Title"] = "Định mức tồn và ngưỡng cận hạn";
+    var f = Model.Filter;
+    var vi = CultureInfo.GetCultureInfo("vi-VN");
+    string N(int n) => n.ToString("N0", vi);
+    var searching = f.Q is not null || f.CategoryId is not null || f.Status is not null;
+    string PageUrl(int page) => Url.Action("Index", new { f.Q, f.CategoryId, f.Status, f.Show, page })!;
+}
+
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs">Quản trị / Thiết lập</p>
+        <h1 class="pm-title">Định mức tồn và ngưỡng cận hạn</h1>
+        <p class="pm-subtitle">Thuốc có tồn bán được dưới mức tối thiểu được báo ở Tồn kho và gợi ý khi đặt hàng; lô còn ít ngày hạn dùng hơn ngưỡng được báo cận hạn.</p>
+    </div>
+</div>
+
+<section class="pm-card mb-4" aria-labelledby="default-days">
+    <h2 id="default-days" class="pm-h2 mb-2">Ngưỡng cận hạn chung</h2>
+    @if (Model.CanEditWarning)
+    {
+        <form asp-action="SaveDefault" method="post" class="row g-2 align-items-end">
+            <input type="hidden" name="q" value="@f.Q" />
+            <input type="hidden" name="categoryId" value="@f.CategoryId" />
+            <input type="hidden" name="status" value="@f.Status" />
+            <input type="hidden" name="show" value="@f.Show" />
+            <input type="hidden" name="page" value="@f.Page" />
+            <div class="col-sm-6 col-md-4 col-lg-3">
+                <label for="days" class="form-label">Số ngày trước hạn dùng <span class="req">*</span></label>
+                <div class="input-group">
+                    <input type="number" id="days" name="days" value="@Model.DefaultWarningDays" class="form-control text-end" min="1" max="@PolicySaveForm.MaxDays" step="1" inputmode="numeric" required />
+                    <span class="input-group-text">ngày</span>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-secondary">Lưu ngưỡng chung</button>
+            </div>
+            <div class="col-12">
+                <p class="form-text mb-0">Áp dụng cho mọi thuốc không đặt số ngày riêng ở bảng dưới.</p>
+            </div>
+        </form>
+    }
+    else
+    {
+        <p class="mb-0">Lô còn từ <strong class="num">@N(Model.DefaultWarningDays)</strong> ngày hạn dùng trở xuống được báo cận hạn (trừ thuốc có số ngày riêng).</p>
+    }
+</section>
+
+<form method="get" asp-action="Index" class="pm-card pm-filter mb-4" role="search" data-pm-live-search>
+    <div class="pm-filter-search">
+        <label for="q" class="visually-hidden">Tìm thuốc</label>
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search" id="q" name="Q" value="@f.Q" class="form-control" placeholder="Tên thuốc, mã, mã vạch, hoạt chất…" autocomplete="off" />
+    </div>
+    <div>
+        <label for="category" class="visually-hidden">Nhóm thuốc</label>
+        <select id="category" name="CategoryId" class="form-select">
+            <option value="">Mọi nhóm thuốc</option>
+            @foreach (var c in Model.Categories)
+            {
+                <!option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</!option>
+            }
+        </select>
+    </div>
+    <div>
+        <label for="status" class="visually-hidden">Thiết lập</label>
+        <select id="status" name="Status" class="form-select">
+            <!option value="" selected="@(f.Status is null)">Mọi thuốc</!option>
+            <!option value="unset" selected="@(f.Status == "unset")">Chưa đặt mức tối thiểu</!option>
+            <!option value="below" selected="@(f.Status == "below")">Dưới mức tối thiểu</!option>
+            <!option value="custom" selected="@(f.Status == "custom")">Có số ngày cận hạn riêng</!option>
+        </select>
+    </div>
+    <div>
+        <label for="show" class="visually-hidden">Thuốc hiển thị</label>
+        <select id="show" name="Show" class="form-select">
+            <!option value="" selected="@(f.Show is null)">Đang kinh doanh</!option>
+            <!option value="all" selected="@(f.Show == "all")">Cả thuốc ngừng kinh doanh</!option>
+        </select>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary" data-pm-live-submit>Lọc</button>
+        <span class="d-flex" data-pm-live="clear">
+            @if (f.IsFiltered)
+            {
+                <a class="btn btn-outline-secondary" asp-action="Index">Bỏ lọc</a>
+            }
+        </span>
+    </div>
+</form>
+
+<p class="small text-muted-pm mb-2"><span data-pm-live="count" aria-live="polite">@if (searching)
+    {
+        <text>Tìm thấy @N(Model.Total) / @N(Model.GrandTotal) thuốc</text>
+    }
+    else if (Model.Total < Model.GrandTotal)
+    {
+        <text>@N(Model.Total) đang kinh doanh / @N(Model.GrandTotal) thuốc</text>
+    }
+    else
+    {
+        <text>@N(Model.GrandTotal) thuốc</text>
+    }</span></p>
+
+<section class="pm-card pm-live-results" aria-label="Thiết lập từng thuốc" data-pm-live="results">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="pm-empty">
+            <i class="bi bi-sliders" aria-hidden="true"></i>
+            @(f.Q is null ? "Không có thuốc nào khớp bộ lọc." : $"Không tìm thấy thuốc khớp “{f.Q}”.")
+        </div>
+    }
+    else
+    {
+        <form asp-action="Save" method="post" novalidate>
+            <div asp-validation-summary="ModelOnly" class="pm-alert bad" role="alert"></div>
+            <input type="hidden" name="Q" value="@f.Q" />
+            <input type="hidden" name="CategoryId" value="@f.CategoryId" />
+            <input type="hidden" name="Status" value="@f.Status" />
+            <input type="hidden" name="Show" value="@f.Show" />
+            <input type="hidden" name="Page" value="@f.Page" />
+            <div class="table-responsive">
+                <table class="pm-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Thuốc</th>
+                            <th scope="col" class="text-end">Tồn bán được</th>
+                            <th scope="col">Mức tồn tối thiểu</th>
+                            <th scope="col">Số ngày cận hạn riêng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (var i = 0; i < Model.Rows.Count; i++)
+                        {
+                            var r = Model.Rows[i];
+                            var p = "Rows[" + i.ToString(CultureInfo.InvariantCulture) + "].";
+                            <tr>
+                                <td>
+                                    <input type="hidden" name="@(p)MedicineId" value="@r.MedicineId" />
+                                    <span class="fw-semibold">@r.Name</span>
+                                    <div class="small text-muted-pm num">@r.Code</div>
+                                    @if (!r.IsActive)
+                                    {
+                                        <span class="pm-badge mute mt-1">Ngừng kinh doanh</span>
+                                    }
+                                </td>
+                                <td class="text-end num text-nowrap">
+                                    @StockText.Quantity(r.Available, r.BaseUnit)
+                                    @if (r.Minimum > 0 && r.Available < r.Minimum)
+                                    {
+                                        <div><span class="pm-badge warn">Dưới mức tối thiểu</span></div>
+                                    }
+                                </td>
+                                <td class="pm-cell-input">
+                                    @if (Model.CanEditMinimum)
+                                    {
+                                        <label class="visually-hidden" for="min-@i">Mức tồn tối thiểu của @r.Name</label>
+                                        <div class="input-group">
+                                            <input type="number" id="min-@i" name="@(p)Minimum" value="@(r.Minimum > 0 ? Format.Input(r.Minimum) : "")" class="form-control text-end" min="0" step="any" inputmode="decimal" placeholder="0" />
+                                            <span class="input-group-text">@r.BaseUnit</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="num">@(r.Minimum > 0 ? StockText.Quantity(r.Minimum, r.BaseUnit) : "Chưa đặt")</span>
+                                    }
+                                </td>
+                                <td class="pm-cell-input">
+                                    @if (Model.CanEditWarning)
+                                    {
+                                        <label class="visually-hidden" for="days-@i">Số ngày cận hạn riêng của @r.Name</label>
+                                        <div class="input-group">
+                                            <input type="number" id="days-@i" name="@(p)WarningDays" value="@r.WarningDays" class="form-control text-end" min="0" max="@PolicySaveForm.MaxDays" step="1" inputmode="numeric" placeholder="Chung: @Model.DefaultWarningDays" />
+                                            <span class="input-group-text">ngày</span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="num">@(r.WarningDays is null ? "Theo ngưỡng chung" : N(r.WarningDays.Value) + " ngày")</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mt-3">
+                <span class="small text-muted-pm">Mức tối thiểu tính theo đơn vị cơ sở; để trống là không báo. Số ngày riêng để trống thì dùng ngưỡng chung. Lưu trước khi chuyển trang.</span>
+                <button type="submit" class="btn btn-primary">Lưu trang này</button>
+            </div>
+        </form>
+
+        @if (Model.PageCount > 1)
+        {
+            <nav class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3" aria-label="Phân trang">
+                <span class="small text-muted-pm">Trang @f.Page / @Model.PageCount</span>
+                <div class="d-flex gap-2">
+                    @if (f.Page > 1)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page - 1)" rel="prev"><i class="bi bi-chevron-left" aria-hidden="true"></i> Trước</a>
+                    }
+                    @if (f.Page < Model.PageCount)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="@PageUrl(f.Page + 1)" rel="next">Sau <i class="bi bi-chevron-right" aria-hidden="true"></i></a>
+                    }
+                </div>
+            </nav>
+        }
+    }
+</section>
+
+@section Scripts {
+    <script src="~/js/live-search.js" asp-append-version="true"></script>
+}

@@ -59,6 +59,10 @@
                 <span class="l">Mức tồn tối thiểu</span>
                 <span class="v">@(Model.Minimum > 0 ? StockText.Quantity(Model.Minimum, Model.BaseUnit) : "Chưa đặt")</span>
                 <span class="s">@(Model.OnOrder > 0 ? "Đang chờ giao " + StockText.Quantity(Model.OnOrder, Model.BaseUnit) + "." : "Không có hàng đang chờ giao.")</span>
+                @if (Model.CanSetPolicy)
+                {
+                    <a class="s" asp-controller="Policies" asp-action="Index" asp-route-q="@Model.Code">Đặt mức tối thiểu, ngưỡng cận hạn</a>
+                }
             </div>
         </div>
     }

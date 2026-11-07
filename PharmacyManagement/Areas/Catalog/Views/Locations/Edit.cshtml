@@ -1,0 +1,42 @@
+﻿@model LocationFormViewModel
+@{
+    var kind = Model.IsShelf ? "kệ" : "tủ";
+    ViewData["Title"] = "Sửa " + kind + " " + Model.Code;
+}
+<div class="pm-page-head">
+    <div>
+        <p class="pm-crumbs"><a asp-action="Index">Tủ, kệ</a> / <span class="num">@Model.Code</span></p>
+        <h1 class="pm-title">Sửa @kind <span class="num">@Model.Code</span></h1>
+    </div>
+    @if (Model.Deletable)
+    {
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#delete-modal"><i class="bi bi-trash3" aria-hidden="true"></i> Xóa @kind</button>
+    }
+</div>
+
+<partial name="_LocationForm" model="Model" />
+
+@if (Model.Deletable)
+{
+    <div class="modal fade" id="delete-modal" tabindex="-1" aria-labelledby="delete-title" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form class="modal-content" asp-action="Delete" asp-route-id="@Model.LocationId" method="post">
+                <div class="modal-header">
+                    <h2 class="modal-title pm-h2" id="delete-title">Xóa @kind @Model.Code?</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">@(Model.IsShelf ? "Kệ" : "Tủ") này chưa từng được dùng nên xóa được. Đã xóa thì không khôi phục lại.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Không xóa</button>
+                    <button type="submit" class="btn btn-danger">Xóa @kind</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_FormValidation" />
+}

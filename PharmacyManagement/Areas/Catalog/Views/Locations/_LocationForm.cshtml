@@ -1,0 +1,56 @@
+﻿@model LocationFormViewModel
+@{
+    var action = Model.IsEdit ? "Edit" : "Create";
+    var kind = Model.IsShelf ? "kệ" : "tủ";
+}
+
+<form asp-action="@action" asp-route-id="@Model.LocationId" method="post" class="d-flex flex-column gap-4 pm-form-narrow"
+      data-pm-draft="@(Model.IsEdit ? "location-edit-" + Model.LocationId : "location-new-" + Model.LocationType)" novalidate>
+    <div asp-validation-summary="All" class="pm-alert bad" role="alert"></div>
+    <input type="hidden" asp-for="LocationType" />
+
+    <section class="pm-card" aria-labelledby="sec-general">
+        <h2 id="sec-general" class="pm-h2 mb-3">Thông tin @kind</h2>
+        <div class="row g-3">
+            @if (Model.IsShelf)
+            {
+                <div class="col-12">
+                    <label asp-for="ParentLocationId" class="form-label">Thuộc tủ <span class="req">*</span></label>
+                    <select asp-for="ParentLocationId" class="form-select">
+                        <option value="">— Chọn tủ —</option>
+                        @foreach (var c in Model.CabinetOptions)
+                        {
+                            <option value="@c.Id">@c.Name</option>
+                        }
+                    </select>
+                    <span asp-validation-for="ParentLocationId" class="field-validation-error"></span>
+                    @if (Model.IsEdit)
+                    {
+                        <div class="form-text">Chuyển kệ sang tủ khác thì các lô trên kệ đi theo kệ.</div>
+                    }
+                </div>
+            }
+            <div class="col-md-5">
+                <label asp-for="Code" class="form-label">Mã @kind <span class="req">*</span></label>
+                <input asp-for="Code" class="form-control text-uppercase" autocomplete="off" maxlength="30" placeholder="@(Model.IsShelf ? "T01-K1" : "T01")" />
+                <span asp-validation-for="Code" class="field-validation-error"></span>
+            </div>
+            <div class="col-md-7">
+                <label asp-for="Name" class="form-label">Tên @kind <span class="req">*</span></label>
+                <input asp-for="Name" class="form-control" autocomplete="off" maxlength="100" placeholder="@(Model.IsShelf ? "Kệ giảm đau, hạ sốt" : "Tủ 1")" />
+                <span asp-validation-for="Name" class="field-validation-error"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Description" class="form-label">Mô tả <span class="opt">(không bắt buộc)</span></label>
+                <input asp-for="Description" class="form-control" autocomplete="off" maxlength="300" placeholder="@(Model.IsShelf ? "" : "Thuốc không kê đơn thông dụng")" />
+                <span asp-validation-for="Description" class="field-validation-error"></span>
+            </div>
+        </div>
+        <p class="form-text mb-0 mt-3">Mã không trùng trong kho; chữ thường tự đổi thành chữ hoa.</p>
+    </section>
+
+    <div class="pm-form-actions">
+        <button type="submit" class="btn btn-primary">@(Model.IsEdit ? "Lưu thay đổi" : "Thêm " + kind)</button>
+        <a class="btn btn-outline-secondary" asp-action="Index">Quay lại</a>
+    </div>
+</form>

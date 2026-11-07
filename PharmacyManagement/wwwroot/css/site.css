@@ -282,3 +282,5 @@ a:hover { color: var(--pm-ink); }
 .pm-tabs a.active { background: var(--pm-surface); color: var(--pm-text); font-weight: 600; box-shadow: 0 1px 3px rgba(19, 48, 47, .12); }
 .pm-tabs a:focus-visible { outline: 2px solid var(--pm-primary); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .pm-stat-link { transition: none; } }
+/* Thiết lập định mức tồn (DEC-42): ô nhập trong bảng không bị co quá hẹp */
+.pm-cell-input { min-width: 180px; }

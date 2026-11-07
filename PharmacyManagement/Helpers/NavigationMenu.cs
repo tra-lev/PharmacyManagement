@@ -58,7 +58,7 @@ public static class NavigationMenu
         {
             new MenuItem("meds", "Thuốc", "capsule", "/Catalog/Medicines", Any(P.F1_1_1, P.F1_1_2), true),
             new MenuItem("suppliers", "Nhà cung cấp", "building", "/Catalog/Suppliers", Any(P.F1_2_1), true),
-            new MenuItem("locations", "Tủ, kệ", "grid-3x3", Soon("locations"), Any(P.F1_5_1), false)
+            new MenuItem("locations", "Tủ, kệ", "grid-3x3", "/Catalog/Locations", Any(P.F1_5_1), true)
         }),
         new MenuGroup("reports", "Báo cáo", new[]
         {
@@ -72,7 +72,7 @@ public static class NavigationMenu
         {
             new MenuItem(Accounts, "Tài khoản", "person-badge", "/Admin/Users", Any(P.F1_3_1), true),
             new MenuItem("roles", "Phân quyền", "shield-lock", Soon("roles"), Any(P.F1_3_3), false),
-            new MenuItem("settings", "Thiết lập", "sliders", Soon("settings"), Any(P.F1_5_2, P.F1_5_3, P.F1_5_4), false),
+            new MenuItem("settings", "Thiết lập", "sliders", "/Inventory/Policies", Any(P.F1_5_2, P.F1_5_3), true),
             new MenuItem("audit", "Nhật ký hoạt động", "clock-history", Soon("audit"), Any(P.Sys09ViewAuditLog), false)
         })
     };
