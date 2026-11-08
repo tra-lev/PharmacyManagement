@@ -13,6 +13,7 @@ using PharmacyManagement.Middleware;
 using PharmacyManagement.Models.Validation;
 using PharmacyManagement.Services.Implementations;
 using PharmacyManagement.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 // Lệnh khôi phục Owner chạy trên máy chủ, không khởi động web: dotnet run -- owner-recovery --email ...
 var isOwnerRecovery = args.Length > 0 && args[0] == "owner-recovery";
@@ -22,7 +23,7 @@ var builder = WebApplication.CreateBuilder(isOwnerRecovery ? Array.Empty<string>
 var connectionString = builder.Configuration.GetConnectionString("PharmacyDb")
     ?? throw new InvalidOperationException("Thiếu ConnectionStrings:PharmacyDb trong appsettings.json hoặc User Secrets.");
 builder.Services.AddDbContext<PharmacyDbContext>(options => options
-    .UseSqlServer(connectionString)
+    .UseNpgsql(connectionString)
     // Data/PharmacyDbContext.Custom.cs cố ý bỏ điều hướng Employee.Shift do scaffold sinh nhầm (1–1 → 1–nhiều, DEC-27);
     // chỉ tắt đúng cảnh báo đó, các cảnh báo khác của EF vẫn hiện.
     .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.MappedNavigationIgnoredWarning)));
