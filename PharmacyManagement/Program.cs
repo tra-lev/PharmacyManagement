@@ -13,7 +13,6 @@ using PharmacyManagement.Middleware;
 using PharmacyManagement.Models.Validation;
 using PharmacyManagement.Services.Implementations;
 using PharmacyManagement.Services.Interfaces;
-using Microsoft.EntityFrameworkCore;
 
 // Lệnh khôi phục Owner chạy trên máy chủ, không khởi động web: dotnet run -- owner-recovery --email ...
 var isOwnerRecovery = args.Length > 0 && args[0] == "owner-recovery";
@@ -52,6 +51,7 @@ builder.Services
     .AddClaimsPrincipalFactory<AppClaimsPrincipalFactory>();
 
 builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(1));
+
 builder.Services.ConfigureApplicationCookie(o =>
 {
     o.LoginPath = "/Account/Login";
@@ -69,6 +69,7 @@ builder.Services.AddAuthorization(o =>
 {
     o.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
 });
+
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionHandler>();
 builder.Services.AddMemoryCache();
@@ -105,11 +106,8 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddControllersWithViews(o =>
 {
     o.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
-    // Ô số (input type=number) luôn gửi dấu chấm thập phân; văn hóa vi-VN coi dấu chấm là phân cách nghìn → đọc số theo InvariantCulture.
     o.ModelBinderProviders.Insert(0, new InvariantDecimalModelBinderProvider());
-    // Ô tiền ([Money]) gõ dạng 200.000 → binder riêng, đặt trước binder số thập phân ở trên.
     o.ModelBinderProviders.Insert(0, new MoneyModelBinderProvider());
-    // Thông báo lỗi ràng buộc dữ liệu bằng tiếng Việt (mặc định là tiếng Anh).
     var m = o.ModelBindingMessageProvider;
     m.SetValueMustBeANumberAccessor(field => $"{field} phải là số.");
     m.SetAttemptedValueIsInvalidAccessor((value, field) => $"“{value}” không hợp lệ cho {field}.");
@@ -134,6 +132,21 @@ if (isOwnerRecovery)
         ?? "http://localhost:5000";
     return await scope.ServiceProvider.GetRequiredService<OwnerRecoveryService>().RunAsync(args.Skip(1).ToArray(), baseUrl);
 }
+
+// ---- Thêm đoạn này để tự động tạo cấu trúc database trên cloud nếu chưa có ----
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<PharmacyDbContext>();
+        dbContext.Database.EnsureCreated(); // Tự động tạo bảng dựa trên Model
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "Không thể tự động tạo cấu trúc CSDL trên PostgreSQL.");
+    }
+}
+// --------------------------------------------------------------------------
 
 // Khởi tạo Owner đầu tiên (chỉ Development, chỉ một lần — DEC-18)
 using (var scope = app.Services.CreateScope())
@@ -166,18 +179,20 @@ app.UseRequestLocalization(new RequestLocalizationOptions
     SupportedCultures = new[] { vietnamese },
     SupportedUICultures = new[] { vietnamese }
 });
+
 app.UseStaticFiles();
 app.UseRouting();
-
 app.UseAuthentication();
 app.UseMiddleware<RequirePasswordChangeMiddleware>();
 app.UseAuthorization();
 
 app.MapStaticAssets().AllowAnonymous();
+
 app.MapControllerRoute(
         name: "areas",
         pattern: "{area:exists}/{controller=Home}/{action=Index}/{id?}")
     .WithStaticAssets();
+
 app.MapControllerRoute(
         name: "default",
         pattern: "{controller=Home}/{action=Index}/{id?}")
