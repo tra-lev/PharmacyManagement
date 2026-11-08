@@ -1534,6 +1534,14 @@ public partial class PharmacyDbContext : IdentityDbContext<IdentityUser, Identit
         });
 
         OnModelCreatingPartial(modelBuilder);
+        // Ánh xạ các bảng Identity về chữ thường để tương thích với PostgreSQL
+        modelBuilder.Entity<IdentityUser>().ToTable("aspnetusers");
+        modelBuilder.Entity<IdentityRole>().ToTable("aspnetroles");
+        modelBuilder.Entity<IdentityUserRole<string>>().ToTable("aspnetuserroles");
+        modelBuilder.Entity<IdentityUserClaim<string>>().ToTable("aspnetuserclaims");
+        modelBuilder.Entity<IdentityUserLogin<string>>().ToTable("aspnetuserlogins");
+        modelBuilder.Entity<IdentityUserToken<string>>().ToTable("aspnetusertokens");
+        modelBuilder.Entity<IdentityRoleClaim<string>>().ToTable("aspnetroleclaims");
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
