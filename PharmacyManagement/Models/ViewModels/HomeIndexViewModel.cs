@@ -15,4 +15,16 @@ public sealed class HomeIndexViewModel
 
     /// <summary>Cảnh báo kho; null khi người dùng không có quyền xem tồn kho.</summary>
     public Inventory.StockAlertCounts? StockAlerts { get; init; }
+
+    /// <summary>
+    /// Số liệu bán hàng hôm nay (cùng cách tính báo cáo doanh thu, DEC-46): toàn nhà thuốc nếu có F4.1.1 / F4.1.2,
+    /// của chính người xem nếu chỉ có F4.1.1-OWN; null khi không có quyền xem → ẩn ô.
+    /// </summary>
+    public Reports.RevenueReportViewModel? Today { get; init; }
+
+    /// <summary>Ô số liệu là doanh số của chính người xem.</summary>
+    public bool TodayIsMine { get; init; }
+
+    /// <summary>Hiện lợi nhuận gộp (F4.1.2).</summary>
+    public bool TodayShowProfit { get; init; }
 }

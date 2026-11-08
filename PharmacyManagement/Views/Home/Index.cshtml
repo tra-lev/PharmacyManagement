@@ -10,16 +10,74 @@
 </div>
 
 <div class="row g-4">
-    <div class="col-lg-7">
-        <section class="pm-card h-100" aria-labelledby="home-data">
-            <h2 id="home-data" class="pm-h2 mb-2">Số liệu hôm nay</h2>
-            <div class="pm-empty">
-                <i class="bi bi-bar-chart" aria-hidden="true"></i>
-                Doanh thu và số liệu bán hàng sẽ hiện ở đây khi có phân hệ Báo cáo.
-            </div>
-        </section>
-    </div>
-    <div class="col-lg-5">
+    @if (Model.Today is { } t)
+    {
+        var vi = System.Globalization.CultureInfo.GetCultureInfo("vi-VN");
+        <div class="col-lg-7">
+            <section class="pm-card h-100" aria-labelledby="home-data">
+                <div class="d-flex flex-wrap align-items-baseline justify-content-between gap-2 mb-3">
+                    <h2 id="home-data" class="pm-h2 mb-0">@(Model.TodayIsMine ? "Doanh số hôm nay của tôi" : "Số liệu hôm nay")</h2>
+                    @if (Model.TodayIsMine)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" asp-area="Reports" asp-controller="Revenue" asp-action="Mine">Doanh số của tôi</a>
+                    }
+                    else
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" asp-area="Reports" asp-controller="Revenue" asp-action="Index">Xem báo cáo</a>
+                    }
+                </div>
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <div class="pm-stat h-100" data-tone="calm">
+                            <span class="l">Doanh thu thuần</span>
+                            <span class="v">@Format.Money(t.NetRevenue)</span>
+                            <span class="s">@t.Invoices.ToString("N0", vi) hóa đơn đã thanh toán</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="pm-stat h-100" data-tone="@(t.Refunds > 0 ? "wait" : "calm")">
+                            <span class="l">Hoàn trả khách</span>
+                            <span class="v">@Format.Money(t.Refunds)</span>
+                            <span class="s">@t.RefundCount.ToString("N0", vi) phiếu đổi trả</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="pm-stat h-100" data-tone="calm">
+                            <span class="l">Doanh thu bán hàng</span>
+                            <span class="v">@Format.Money(t.Revenue)</span>
+                            <span class="s">Đã trừ chiết khấu @Format.Money(t.Discount)</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        @if (Model.TodayShowProfit)
+                        {
+                            <div class="pm-stat h-100" data-tone="@(t.GrossProfit < 0 ? "bad" : "good")">
+                                <span class="l">Lợi nhuận gộp</span>
+                                <span class="v">@(t.GrossProfit < 0 ? "−" : "")@Format.Money(Math.Abs(Math.Round(t.GrossProfit)))</span>
+                                <span class="s">@(t.GrossMargin is null ? "Chưa có doanh thu" : "Tỷ suất " + t.GrossMargin.Value.ToString("0.0", vi) + "%")</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="pm-stat h-100" data-tone="calm">
+                                <span class="l">Bình quân mỗi hóa đơn</span>
+                                <span class="v">@(t.Invoices == 0 ? "—" : Format.Money(Math.Round(t.Revenue / t.Invoices)))</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+                @if (t.Invoices == 0 && t.RefundCount == 0)
+                {
+                    <p class="form-text mb-0 mt-3">Hôm nay chưa có hóa đơn nào được thanh toán.</p>
+                }
+                else
+                {
+                    <p class="form-text mb-0 mt-3">Tính theo lúc thanh toán đủ tiền; hóa đơn chờ thanh toán chưa được tính.</p>
+                }
+            </section>
+        </div>
+    }
+    <div class="@(Model.Today is null ? "col-lg-6" : "col-lg-5")">
         <section class="pm-card h-100" aria-labelledby="home-todo">
             <h2 id="home-todo" class="pm-h2 mb-3">Việc cần làm</h2>
             <div class="d-flex flex-column gap-2">
