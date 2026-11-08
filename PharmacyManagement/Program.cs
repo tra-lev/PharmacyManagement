@@ -21,6 +21,7 @@ var builder = WebApplication.CreateBuilder(isOwnerRecovery ? Array.Empty<string>
 // ---- CSDL (Database-first: PharmacyDbContext do tools\02-scaffold.ps1 sinh ra) ----
 var connectionString = builder.Configuration.GetConnectionString("PharmacyDb")
     ?? throw new InvalidOperationException("Thiếu ConnectionStrings:PharmacyDb trong appsettings.json hoặc User Secrets.");
+
 builder.Services.AddDbContext<PharmacyDbContext>(options => options
     .UseNpgsql(connectionString)
     // Data/PharmacyDbContext.Custom.cs cố ý bỏ điều hướng Employee.Shift do scaffold sinh nhầm (1–1 → 1–nhiều, DEC-27);
@@ -133,21 +134,21 @@ if (isOwnerRecovery)
     return await scope.ServiceProvider.GetRequiredService<OwnerRecoveryService>().RunAsync(args.Skip(1).ToArray(), baseUrl);
 }
 
-// ---- Thêm đoạn này để tự động tạo cấu trúc database trên cloud nếu chưa có ----
+// ---- Tự động chạy Migration cấu trúc database trên PostgreSQL ----
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<PharmacyDbContext>();
-        dbContext.Database.EnsureCreated(); // Tự động tạo bảng dựa trên Model
+        dbContext.Database.Migrate(); // Dùng Migrate() thay cho EnsureCreated()
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "Không thể tự động tạo cấu trúc CSDL trên PostgreSQL.");
+        app.Logger.LogError(ex, "Không thể tự động chạy Migration CSDL trên PostgreSQL.");
     }
 }
-// --------------------------------------------------------------------------
 
+// --------------------------------------------------------------------------
 // Khởi tạo Owner đầu tiên (chỉ Development, chỉ một lần — DEC-18)
 using (var scope = app.Services.CreateScope())
 {
@@ -173,6 +174,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseRequestLocalization(new RequestLocalizationOptions
 {
     DefaultRequestCulture = new RequestCulture(vietnamese),
